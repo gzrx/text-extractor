@@ -1,6 +1,7 @@
 set(TEXTRACT_LIB_SOURCES
     capture/rawimage.cpp
     capture/kwincapture.cpp
+    overlay/geometry.cpp
 )
 
 add_library(textract_lib STATIC ${TEXTRACT_LIB_SOURCES})
