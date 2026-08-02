@@ -1,9 +1,14 @@
 #include <LayerShellQt/Shell>
 
+#include <KGlobalAccel>
+
+#include <QAction>
 #include <QCommandLineParser>
 #include <QGuiApplication>
+#include <QKeySequence>
 #include <QTextStream>
 
+#include "app/extractorcontroller.h"
 #include "capture/kwincapture.h"
 #include "overlay/selectionoverlay.h"
 
@@ -34,6 +39,11 @@ int main(int argc, char **argv)
         QStringLiteral("Capture, let the user drag, save the crop to <file>."),
         QStringLiteral("file"));
     parser.addOption(selectTest);
+
+    QCommandLineOption daemonMode(
+        QStringLiteral("daemon"),
+        QStringLiteral("Stay resident and listen for the global shortcut."));
+    parser.addOption(daemonMode);
 
     parser.process(app);
 
@@ -92,6 +102,39 @@ int main(int argc, char **argv)
         overlay->start(result.image);
         app.exec();
         return exitCode;
+    }
+
+    if (parser.isSet(daemonMode)) {
+        auto *controller = new textract::ExtractorController(&app);
+        if (!controller->warmUp(QStringLiteral("eng"))) {
+            err << "could not load tesseract 'eng' data; "
+                   "install tesseract-data-eng\n";
+            return 1;
+        }
+
+        auto *action = new QAction(&app);
+        action->setObjectName(QStringLiteral("extract_text"));
+        action->setText(QStringLiteral("Extract text from screen region"));
+        QObject::connect(action, &QAction::triggered,
+                         controller, &textract::ExtractorController::extract);
+
+        // The Calculator key (XF86Calculator) rather than a modifier combo:
+        // it is a dedicated key on this keyboard and does not collide with the
+        // existing Plasma shortcuts.
+        const QList<QKeySequence> shortcut{QKeySequence(Qt::Key_Calculator)};
+
+        // NoAutoloading forces this binding instead of whatever KGlobalAccel
+        // has stored for the component from a previous run. Without it, a
+        // shortcut changed in code is silently ignored in favour of the
+        // persisted one in kglobalshortcutsrc.
+        KGlobalAccel::self()->setDefaultShortcut(action, shortcut,
+                                                 KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(action, shortcut,
+                                          KGlobalAccel::NoAutoloading);
+
+        QTextStream(stdout)
+            << "textract daemon ready; press the Calculator key\n";
+        return app.exec();
     }
 
     err << "nothing to do; see --help\n";

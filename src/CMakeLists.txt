@@ -6,6 +6,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/tesseractengine.cpp
     assemble/assemble.cpp
     clipboard/clipboard.cpp
+    app/extractorcontroller.cpp
 )
 
 add_library(textract_lib STATIC ${TEXTRACT_LIB_SOURCES})
@@ -14,10 +15,11 @@ target_include_directories(textract_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(textract_lib PUBLIC
     Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface
     PkgConfig::Tesseract PkgConfig::Leptonica
-    KF6::GuiAddons)
+    KF6::GuiAddons KF6::Notifications)
 
 add_executable(textract main.cpp)
-target_link_libraries(textract PRIVATE textract_lib Qt6::Gui Qt6::Widgets)
+target_link_libraries(textract PRIVATE
+    textract_lib Qt6::Gui Qt6::Widgets KF6::GlobalAccel)
 
 install(TARGETS textract ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 

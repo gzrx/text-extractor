@@ -11,6 +11,7 @@
 #include <QRasterWindow>
 #include <QScreen>
 
+
 /// A borderless layer-shell surface covering one screen.
 class OverlayWindow : public QRasterWindow
 {
@@ -47,6 +48,7 @@ protected:
 
         // QWindow has no rect(); build it from the current logical size.
         const QRect surface(0, 0, width(), height());
+
 
         // Draw this screen's slice of the workspace capture, scaled to fit.
         painter.drawImage(surface, m_workspace, physicalScreenRect());
@@ -88,6 +90,7 @@ protected:
         m_dragging = false;
 
         const QRect physical = mapSelection(m_selection);
+
         if (textract::isSelectionUsable(physical)) {
             Q_EMIT regionChosen(physical);
         } else {
@@ -103,21 +106,32 @@ protected:
     }
 
 private:
+    /**
+     * The scale to map this surface's logical coordinates to capture pixels.
+     *
+     * MUST be the window's ratio, not the screen's. Under Wayland fractional
+     * scaling QScreen::devicePixelRatio() reports the integer buffer scale —
+     * 2 on this 1.25-scaled display — while QWindow::devicePixelRatio()
+     * reports the true 1.25. Using the screen's value doubled every selection,
+     * pushing it off the bottom of the capture where it clamped to an empty
+     * rect and was silently discarded as an accidental click.
+     */
+    qreal captureScale() const { return devicePixelRatio(); }
+
     /// This screen's area within the physical workspace image.
     QRect physicalScreenRect() const
     {
-        return textract::mapSelectionToPhysical(
-            QRect(QPoint(0, 0), screen()->geometry().size()),
-            screen()->geometry().topLeft(),
-            screen()->devicePixelRatio(),
-            m_workspace.size());
+        return textract::mapSelectionToPhysical(QRect(0, 0, width(), height()),
+                                                screen()->geometry().topLeft(),
+                                                captureScale(),
+                                                m_workspace.size());
     }
 
     QRect mapSelection(const QRect &windowRect) const
     {
         return textract::mapSelectionToPhysical(windowRect,
                                                 screen()->geometry().topLeft(),
-                                                screen()->devicePixelRatio(),
+                                                captureScale(),
                                                 m_workspace.size());
     }
 
