@@ -179,9 +179,6 @@ subpixel-antialiased and often light-on-dark; Tesseract 5's LSTM engine already
 does its own adaptive thresholding. Upscaling and polarity detection are where
 the wins are.
 
-Design notes and the implementation plan live in
-[`docs/superpowers/`](docs/superpowers/).
-
 ## Contributing
 
 Unit-testable code is written test-first. `capture/` and `overlay/` are the
