@@ -3,13 +3,15 @@ set(TEXTRACT_LIB_SOURCES
     capture/kwincapture.cpp
     overlay/geometry.cpp
     overlay/selectionoverlay.cpp
+    ocr/tesseractengine.cpp
 )
 
 add_library(textract_lib STATIC ${TEXTRACT_LIB_SOURCES})
 set_target_properties(textract_lib PROPERTIES AUTOMOC ON)
 target_include_directories(textract_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(textract_lib PUBLIC
-    Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface)
+    Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface
+    PkgConfig::Tesseract PkgConfig::Leptonica)
 
 add_executable(textract main.cpp)
 target_link_libraries(textract PRIVATE textract_lib Qt6::Gui Qt6::Widgets)
