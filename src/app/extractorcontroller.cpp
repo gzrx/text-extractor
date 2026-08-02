@@ -3,7 +3,8 @@
 
 #include "app/extractorcontroller.h"
 
-#include "assemble/assemble.h"
+#include "app/extraction.h"
+
 #include "capture/kwincapture.h"
 #include "clipboard/clipboard.h"
 #include "overlay/selectionoverlay.h"
@@ -66,33 +67,23 @@ void ExtractorController::onSelected(const QRect &physicalRect)
     const QImage crop = m_workspace.copy(physicalRect);
     m_workspace = QImage();
 
-    const std::vector<Word> words = m_engine.recognize(crop, m_langs);
-    if (words.empty()) {
+    // M4 will classify the layout here instead of assuming Raw.
+    const Extraction result = extractText(m_engine, crop, m_langs,
+                                          LayoutKind::Raw, m_preprocess);
+
+    if (result.isEmpty() || result.text.isEmpty()) {
         // Clipboard deliberately left untouched.
         notify(QStringLiteral("No text found"),
                QStringLiteral("Nothing was recognised in that region."));
         return;
     }
 
-    const QString text = assemble(words, LayoutKind::Raw);
-    if (text.isEmpty()) {
-        notify(QStringLiteral("No text found"),
-               QStringLiteral("Nothing was recognised in that region."));
-        return;
-    }
+    copyToClipboard(result.text);
 
-    copyToClipboard(text);
-
-    float total = 0.0f;
-    for (const Word &word : words) {
-        total += word.confidence;
-    }
-    const float mean = total / float(words.size());
-
-    if (mean < kLowConfidence) {
+    if (result.meanConfidence < kLowConfidence) {
         notify(QStringLiteral("Copied with low confidence"),
                QStringLiteral("Mean confidence %1%. The result may contain errors.")
-                   .arg(int(mean * 100)));
+                   .arg(int(result.meanConfidence * 100)));
     }
 }
 

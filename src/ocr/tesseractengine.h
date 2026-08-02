@@ -28,8 +28,11 @@ public:
     bool isWarm() const override;
 
     /// Divisor applied to reported boxes so they land in original crop
-    /// coordinates. M2 leaves this at 1; M3's preprocessing will set it.
-    void setUpscaleFactor(int factor) { m_upscale = factor > 0 ? factor : 1; }
+    /// coordinates. extractText() sets this from effectiveUpscale().
+    void setUpscaleFactor(int factor) override
+    {
+        m_upscale = factor > 0 ? factor : 1;
+    }
 
 private:
     std::unique_ptr<tesseract::TessBaseAPI> m_api;

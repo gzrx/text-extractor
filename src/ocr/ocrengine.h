@@ -24,6 +24,13 @@ public:
 
     /// True once the engine's models are loaded and a call will be fast.
     virtual bool isWarm() const = 0;
+
+    /// Tells the engine what factor preprocessing upscaled the image by, so it
+    /// can divide reported boxes back into original crop coordinates.
+    ///
+    /// Pure virtual on purpose: every engine owns this conversion, and
+    /// `analyze/` and `assemble/` must never learn that upscaling happened.
+    virtual void setUpscaleFactor(int factor) = 0;
 };
 
 } // namespace textract

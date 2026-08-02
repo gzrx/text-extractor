@@ -3,9 +3,11 @@ set(TEXTRACT_LIB_SOURCES
     capture/kwincapture.cpp
     overlay/geometry.cpp
     overlay/selectionoverlay.cpp
+    preprocess/preprocess.cpp
     ocr/tesseractengine.cpp
     assemble/assemble.cpp
     clipboard/clipboard.cpp
+    app/extraction.cpp
     app/extractorcontroller.cpp
 )
 

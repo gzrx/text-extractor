@@ -8,6 +8,7 @@
 #include <QRect>
 
 #include "ocr/tesseractengine.h"
+#include "preprocess/preprocess.h"
 
 namespace textract {
 
@@ -33,6 +34,7 @@ private:
     TesseractEngine   m_engine;
     SelectionOverlay *m_overlay{nullptr};
     QImage            m_workspace;
+    PreprocessOptions m_preprocess{};
     QString           m_langs{QStringLiteral("eng")};
     bool              m_busy{false};
 };
