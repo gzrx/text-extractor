@@ -4,6 +4,7 @@ set(TEXTRACT_LIB_SOURCES
     overlay/geometry.cpp
     overlay/selectionoverlay.cpp
     ocr/tesseractengine.cpp
+    assemble/assemble.cpp
 )
 
 add_library(textract_lib STATIC ${TEXTRACT_LIB_SOURCES})
