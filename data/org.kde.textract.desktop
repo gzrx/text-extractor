@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Text Extractor
+Comment=Extract text from a screen region
+Exec=textract --daemon
+Icon=edit-copy
+Terminal=false
+NoDisplay=true
+X-KDE-DBUS-Restricted-Interfaces=org.kde.kwin.screenshot
