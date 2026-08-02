@@ -1,0 +1,15 @@
+#pragma once
+
+#include <QString>
+
+namespace textract {
+
+/**
+ * Places `text` on the system clipboard.
+ *
+ * Does nothing when `text` is empty: the spec forbids clobbering the user's
+ * existing clipboard contents on a failure path.
+ */
+void copyToClipboard(const QString &text);
+
+} // namespace textract
