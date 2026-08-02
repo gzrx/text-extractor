@@ -2,8 +2,8 @@
 Type=Application
 Name=Text Extractor
 Comment=Extract text from a screen region
-Exec=textract --daemon
+Exec=@TEXTRACT_EXEC@ --daemon
 Icon=edit-copy
 Terminal=false
 NoDisplay=true
-X-KDE-DBUS-Restricted-Interfaces=org.kde.kwin.screenshot
+X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2
