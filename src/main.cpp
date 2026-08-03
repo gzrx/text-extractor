@@ -149,14 +149,18 @@ int main(int argc, char **argv)
         // existing Plasma shortcuts.
         const QList<QKeySequence> shortcut{QKeySequence(Qt::Key_Calculator)};
 
-        // NoAutoloading forces this binding instead of whatever KGlobalAccel
-        // has stored for the component from a previous run. Without it, a
-        // shortcut changed in code is silently ignored in favour of the
-        // persisted one in kglobalshortcutsrc.
+        // NoAutoloading on setDefaultShortcut pins what this build considers the
+        // default. setShortcut deliberately does NOT pass it, so a binding the user
+        // set in System Settings is loaded and wins.
+        //
+        // This reverses an earlier decision, and the trap it was avoiding comes
+        // back -- for developers only. Once a binding is stored, changing the
+        // QKeySequence below appears to do nothing. Clear it with:
+        //   kwriteconfig6 --file kglobalshortcutsrc --group textract \
+        //                 --key extract_text --delete
         KGlobalAccel::self()->setDefaultShortcut(action, shortcut,
                                                  KGlobalAccel::NoAutoloading);
-        KGlobalAccel::self()->setShortcut(action, shortcut,
-                                          KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(action, shortcut);
 
         auto *tier2Action = new QAction(&app);
         tier2Action->setObjectName(QStringLiteral("extract_text_tier2"));
@@ -173,8 +177,7 @@ int main(int argc, char **argv)
 
         KGlobalAccel::self()->setDefaultShortcut(tier2Action, tier2Shortcut,
                                                  KGlobalAccel::NoAutoloading);
-        KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut,
-                                          KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut);
 
         QTextStream(stdout)
             << "textract daemon ready; Calculator = tier 1, "
