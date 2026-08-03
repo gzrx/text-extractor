@@ -6,6 +6,7 @@ set(TEXTRACT_LIB_SOURCES
     preprocess/preprocess.cpp
     ocr/tesseractengine.cpp
     ocr/paddlewords.cpp
+    ocr/paddledet.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
