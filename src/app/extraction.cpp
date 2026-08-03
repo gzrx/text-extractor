@@ -22,7 +22,7 @@ Extraction extractText(OcrEngine &engine,
     // clamped, and the divisor has to match the image the engine actually got.
     engine.setUpscaleFactor(effectiveUpscale(options));
 
-    result.words = engine.recognize(conditioned, langs);
+    result.words = engine.recognize(conditioned, langs, Segmentation::Auto);
     if (result.words.empty()) {
         return result;
     }

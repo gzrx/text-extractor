@@ -42,14 +42,14 @@ bool TesseractEngine::initialize(const QString &langs)
         return false;
     }
 
-    m_api->SetPageSegMode(tesseract::PSM_AUTO);
     m_langs = langs;
     m_warm = true;
     return true;
 }
 
 std::vector<Word> TesseractEngine::recognize(const QImage &image,
-                                             const QString &langs)
+                                             const QString &langs,
+                                             Segmentation mode)
 {
     if (!initialize(langs)) {
         return {};
@@ -57,6 +57,12 @@ std::vector<Word> TesseractEngine::recognize(const QImage &image,
     if (image.isNull()) {
         return {};
     }
+
+    // Per call, not in initialize(): the mode is chosen from the classified
+    // layout, and a warm API accepts a different one on every call.
+    m_api->SetPageSegMode(mode == Segmentation::SingleBlock
+                              ? tesseract::PSM_SINGLE_BLOCK
+                              : tesseract::PSM_AUTO);
 
     // Format_RGB888 guarantees a tightly packed 3-byte layout, which is what
     // SetImage's pointer overload expects.

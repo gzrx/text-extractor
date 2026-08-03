@@ -24,7 +24,8 @@ public:
     bool initialize(const QString &langs);
 
     std::vector<Word> recognize(const QImage &image,
-                                const QString &langs) override;
+                                const QString &langs,
+                                Segmentation mode) override;
     bool isWarm() const override;
 
     /// Divisor applied to reported boxes so they land in original crop
