@@ -16,4 +16,17 @@ LayoutClass classify(const std::vector<Word> &words, const QImage &image)
     return {};
 }
 
+Segmentation segmentationFor(LayoutKind kind)
+{
+    switch (kind) {
+    case LayoutKind::Prose:
+        return Segmentation::Auto;
+    case LayoutKind::Raw:
+    case LayoutKind::Code:
+    case LayoutKind::Table:
+        return Segmentation::SingleBlock;
+    }
+    return Segmentation::SingleBlock;
+}
+
 } // namespace textract

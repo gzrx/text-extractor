@@ -44,6 +44,26 @@ private Q_SLOTS:
         QCOMPARE(textract::classify(words, QImage()).kind,
                  textract::LayoutKind::Raw);
     }
+
+    /// Prose is the only kind that may be genuinely multi-column, so it is the
+    /// only one that gets full page layout analysis.
+    void asksForFullLayoutAnalysisOnlyForProse()
+    {
+        QCOMPARE(textract::segmentationFor(textract::LayoutKind::Prose),
+                 textract::Segmentation::Auto);
+    }
+
+    /// Raw, Code and Table are whitespace-aligned single blocks, where column
+    /// detection is precisely what ruins them.
+    void asksForASingleBlockForEveryOtherKind()
+    {
+        QCOMPARE(textract::segmentationFor(textract::LayoutKind::Raw),
+                 textract::Segmentation::SingleBlock);
+        QCOMPARE(textract::segmentationFor(textract::LayoutKind::Code),
+                 textract::Segmentation::SingleBlock);
+        QCOMPARE(textract::segmentationFor(textract::LayoutKind::Table),
+                 textract::Segmentation::SingleBlock);
+    }
 };
 
 QTEST_MAIN(TestAnalyze)

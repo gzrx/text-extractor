@@ -8,6 +8,7 @@
 #include <QImage>
 
 #include "assemble/assemble.h"
+#include "ocr/ocrengine.h"
 #include "ocr/word.h"
 
 namespace textract {
@@ -33,5 +34,16 @@ struct LayoutClass {
  * unambitious, whereas a confident wrong answer reorders the user's text.
  */
 LayoutClass classify(const std::vector<Word> &words, const QImage &image);
+
+/**
+ * The page segmentation a layout wants.
+ *
+ * `Prose` is the only kind that may be genuinely multi-column, so it is the
+ * only one that gets full layout analysis. Raw, Code and Table are all
+ * whitespace-aligned single blocks, where column detection is precisely the
+ * thing that ruins them — it turns alignment gutters into column boundaries
+ * and emits the region block by block instead of line by line.
+ */
+Segmentation segmentationFor(LayoutKind kind);
 
 } // namespace textract

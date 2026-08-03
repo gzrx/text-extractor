@@ -6,7 +6,7 @@
             "expected": "dark-terminal-buildlog.txt",
             "langs": "eng",
             "layout": "raw",
-            "minScore": 0.62,
+            "minScore": 0.93,
             "notes": "Dark-mode Konsole, build and ctest output. Polarity path, and column-aligned test results."
         },
         {
@@ -24,7 +24,7 @@
             "expected": "dark-terminal-table.txt",
             "langs": "eng",
             "layout": "table",
-            "minScore": 0.12,
+            "minScore": 0.48,
             "notes": "Monospaced whitespace-aligned table. Expected text is space-joined; the M4 Table branch will change that form."
         },
         {
@@ -51,7 +51,7 @@
             "expected": "small-ui-text.txt",
             "langs": "eng",
             "layout": "raw",
-            "minScore": 0.45,
+            "minScore": 0.92,
             "notes": "Same content as dark-terminal-buildlog at a 7pt font on a 1.25-scaled display; the small-text case."
         },
         {
@@ -69,7 +69,7 @@
             "expected": "spreadsheet-table.txt",
             "langs": "eng",
             "layout": "table",
-            "minScore": 0.28,
+            "minScore": 0.98,
             "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics."
         },
         {

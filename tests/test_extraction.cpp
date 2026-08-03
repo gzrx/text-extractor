@@ -2,32 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <QTest>
-#include <QFont>
 #include <QImage>
-#include <QPainter>
 
 #include "app/extraction.h"
 #include "ocr/tesseractengine.h"
+#include "testimages.h"
 
-namespace {
-
-/// Renders `text` at a size Tesseract reads reliably, in the given polarity.
-QImage renderText(const QString &text, Qt::GlobalColor background,
-                  Qt::GlobalColor foreground)
-{
-    QImage image(900, 160, QImage::Format_RGB32);
-    image.fill(background);
-
-    QPainter painter(&image);
-    QFont font(QStringLiteral("DejaVu Sans"), 48);
-    painter.setFont(font);
-    painter.setPen(foreground);
-    painter.drawText(QRect(20, 20, 860, 120), Qt::AlignLeft | Qt::AlignVCenter,
-                     text);
-    return image;
-}
-
-} // namespace
+using namespace textract::testimages;
 
 class TestExtraction : public QObject
 {
@@ -130,6 +111,44 @@ private Q_SLOTS:
                                                   textract::LayoutKind::Code, {});
 
         QCOMPARE(result.kind, textract::LayoutKind::Code);
+    }
+
+    /// The layout has to reach the engine, not just the assembler. Prose is
+    /// the multi-column kind, so a two-column crop forced to Prose must come
+    /// back one whole column at a time.
+    void segmentsProseWithFullLayoutAnalysis()
+    {
+        const QImage crop = renderTwoColumns(columnLines(QStringLiteral("west")),
+                                             columnLines(QStringLiteral("east")));
+
+        const auto result = textract::extractText(m_engine, crop,
+                                                  QStringLiteral("eng"),
+                                                  textract::LayoutKind::Prose, {});
+
+        const int lastWest = lastIndexOf(result.words, QStringLiteral("west"));
+        const int firstEast = firstIndexOf(result.words, QStringLiteral("east"));
+        QVERIFY(lastWest >= 0 && firstEast >= 0);
+        QVERIFY2(lastWest < firstEast,
+                 "Prose should read the left column through before the right");
+    }
+
+    /// The same crop forced to Raw must read line by line instead. This is the
+    /// reading-order defect the classifier exists to fix: on a terminal or a
+    /// spreadsheet the gutters are alignment, not column boundaries.
+    void segmentsRawAsASingleBlock()
+    {
+        const QImage crop = renderTwoColumns(columnLines(QStringLiteral("west")),
+                                             columnLines(QStringLiteral("east")));
+
+        const auto result = textract::extractText(m_engine, crop,
+                                                  QStringLiteral("eng"),
+                                                  textract::LayoutKind::Raw, {});
+
+        const int lastWest = lastIndexOf(result.words, QStringLiteral("west"));
+        const int firstEast = firstIndexOf(result.words, QStringLiteral("east"));
+        QVERIFY(lastWest >= 0 && firstEast >= 0);
+        QVERIFY2(firstEast < lastWest,
+                 "Raw should interleave the two columns row by row");
     }
 
     /// The factor actually applied is the clamped one, so an out-of-range
