@@ -9,6 +9,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/paddledet.cpp
     ocr/paddlerec.cpp
     ocr/onnxpaddleengine.cpp
+    models/modelspec.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp

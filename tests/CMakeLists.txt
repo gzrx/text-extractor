@@ -67,6 +67,11 @@ ecm_add_test(test_captureerror.cpp
     LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
 )
 
+ecm_add_test(test_modelspec.cpp
+    TEST_NAME test_modelspec
+    LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
+)
+
 # Corpus loader and scorer, shared by the ctest gate and the report tool.
 add_library(textract_fixtures STATIC fixturecorpus.cpp)
 target_include_directories(textract_fixtures PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
