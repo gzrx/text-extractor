@@ -11,6 +11,35 @@
 
 namespace textract {
 
+QStringList availableLanguages()
+{
+    // A throwaway API instance: GetAvailableLanguagesAsVector only scans the
+    // tessdata directory and does not need a language loaded, but it is a
+    // member function, so an object has to exist to ask.
+    tesseract::TessBaseAPI api;
+    if (api.Init(nullptr, nullptr) != 0) {
+        return {};
+    }
+
+    std::vector<std::string> found;
+    api.GetAvailableLanguagesAsVector(&found);
+    api.End();
+
+    QStringList langs;
+    langs.reserve(int(found.size()));
+    for (const std::string &lang : found) {
+        const QString code = QString::fromStdString(lang);
+        if (code == QLatin1String("osd")) {
+            continue;
+        }
+        langs << code;
+    }
+
+    langs.sort();
+    langs.removeDuplicates();
+    return langs;
+}
+
 TesseractEngine::TesseractEngine()
     : m_api(std::make_unique<tesseract::TessBaseAPI>())
 {
