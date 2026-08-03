@@ -3,6 +3,8 @@
 
 #include "assemble/assemble.h"
 
+#include <algorithm>
+
 #include <QStringList>
 
 namespace textract {
@@ -106,6 +108,114 @@ QString assembleRaw(const std::vector<Word> &words)
     return out;
 }
 
+double median(std::vector<double> values)
+{
+    if (values.empty()) {
+        return 0.0;
+    }
+    const size_t middle = values.size() / 2;
+    std::nth_element(values.begin(), values.begin() + long(middle), values.end());
+    return values[middle];
+}
+
+/// Median width of one character, in pixels. Monospaced text makes this exact;
+/// on a proportional face it is still the best available ruler.
+double characterWidth(const std::vector<Word> &words)
+{
+    std::vector<double> advances;
+    for (const Word &word : words) {
+        if (!word.text.isEmpty() && word.bbox.width() > 0) {
+            advances.push_back(double(word.bbox.width())
+                               / double(word.text.size()));
+        }
+    }
+    return median(std::move(advances));
+}
+
+int lineTop(const Line &line)
+{
+    int top = line.words.front()->bbox.top();
+    for (const Word *word : line.words) {
+        top = std::min(top, word->bbox.top());
+    }
+    return top;
+}
+
+/// Median vertical distance between consecutive lines.
+double linePitch(const std::vector<Line> &lines)
+{
+    std::vector<double> gaps;
+    for (size_t i = 1; i < lines.size(); ++i) {
+        const double gap = lineTop(lines[i]) - lineTop(lines[i - 1]);
+        if (gap > 0.0) {
+            gaps.push_back(gap);
+        }
+    }
+    return median(std::move(gaps));
+}
+
+/// A vertical gap this much larger than the usual pitch means blank lines.
+constexpr double kBlankLineGap = 1.5;
+
+/// Cap on reconstructed blank lines. A misjudged pitch would otherwise turn
+/// one wide gap into a screenful of nothing.
+constexpr int kMaxBlankLines = 2;
+
+/**
+ * Source code, with its indentation put back.
+ *
+ * The engine reports where each word starts, never how many spaces preceded
+ * it, so indentation is recovered by dividing the offset from the leftmost
+ * line by the measured character cell. Lines are never joined: in code a line
+ * break is content, and a trailing hyphen is an operator rather than
+ * hyphenation.
+ */
+QString assembleCode(const std::vector<Word> &words)
+{
+    const std::vector<Line> lines = groupIntoLines(words);
+    if (lines.empty()) {
+        return QString();
+    }
+
+    const double cell = characterWidth(words);
+    const double pitch = linePitch(lines);
+
+    int origin = lines.front().words.front()->bbox.left();
+    for (const Line &line : lines) {
+        origin = std::min(origin, line.words.front()->bbox.left());
+    }
+
+    QString out;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const Line &line = lines[i];
+
+        if (i > 0) {
+            out += QLatin1Char('\n');
+            if (pitch > 0.0) {
+                // A blank line in source contains no words, so the engine
+                // cannot report one. The gap is the only evidence it existed.
+                const double gap = lineTop(line) - lineTop(lines[i - 1]);
+                if (gap >= kBlankLineGap * pitch) {
+                    const int blanks = std::min(kMaxBlankLines,
+                                                int(qRound(gap / pitch)) - 1);
+                    out += QString(blanks, QLatin1Char('\n'));
+                }
+            }
+        }
+
+        if (cell > 0.0) {
+            const int indent = int(qRound((line.words.front()->bbox.left()
+                                           - origin) / cell));
+            if (indent > 0) {
+                out += QString(indent, QLatin1Char(' '));
+            }
+        }
+        out += line.joined();
+    }
+
+    return out;
+}
+
 /**
  * Paragraphs, unwrapped.
  *
@@ -163,10 +273,11 @@ QString assembleProse(const std::vector<Word> &words)
 QString assemble(const std::vector<Word> &words, LayoutKind kind)
 {
     switch (kind) {
+    case LayoutKind::Code:
+        return assembleCode(words);
     case LayoutKind::Prose:
         return assembleProse(words);
     case LayoutKind::Raw:
-    case LayoutKind::Code:
     case LayoutKind::Table:
         return assembleRaw(words);
     }

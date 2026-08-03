@@ -124,6 +124,60 @@ private Q_SLOTS:
                  QStringLiteral("使用 OCR 技术"));
     }
 
+    // --- Code --------------------------------------------------------------
+
+    /// Indentation is the whole point of copying code, and Tesseract does not
+    /// report it — it reports where each word starts. Dividing that offset by
+    /// the measured character cell recovers the columns.
+    void reconstructsIndentationFromXOffsets()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("if (x) {"), 0, 1);
+        appendLine(words, QStringLiteral("return;"), 40, 2);
+        appendLine(words, QStringLiteral("}"), 0, 3);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Code),
+                 QStringLiteral("if (x) {\n    return;\n}"));
+    }
+
+    /// Indentation is relative to the leftmost line, not to the crop, so a
+    /// selection that starts mid-indent does not gain a margin.
+    void measuresIndentationFromTheLeftmostLine()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("first"), 40, 1);
+        appendLine(words, QStringLiteral("second"), 80, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Code),
+                 QStringLiteral("first\n    second"));
+    }
+
+    /// A line-end hyphen in code is an operator or part of an identifier. Code
+    /// never joins lines, whatever the line ends with.
+    void neverJoinsLinesEvenAfterAHyphen()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("total = a -"), 0, 1);
+        appendLine(words, QStringLiteral("b;"), 0, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Code),
+                 QStringLiteral("total = a -\nb;"));
+    }
+
+    /// A blank line in source has no words in it, so the engine cannot report
+    /// one. The vertical gap is the only evidence it was there.
+    void restoresABlankLineFromAVerticalGap()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("alpha"), 0, 1);
+        appendLine(words, QStringLiteral("bravo"), 0, 2);
+        appendLine(words, QStringLiteral("charlie"), 0, 3);
+        appendLine(words, QStringLiteral("delta"), 0, 5);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Code),
+                 QStringLiteral("alpha\nbravo\ncharlie\n\ndelta"));
+    }
+
     // --- Prose -------------------------------------------------------------
 
     /// Rendered line breaks inside a paragraph are an artefact of the width

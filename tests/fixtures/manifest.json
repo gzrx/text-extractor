@@ -15,8 +15,8 @@
             "expected": "dark-terminal-code.txt",
             "langs": "eng",
             "layout": "code",
-            "minScore": 0.72,
-            "notes": "Dark-mode C++ source. Indentation and punctuation density; the M4 Code branch will assert against this."
+            "minScore": 0.96,
+            "notes": "Dark-mode C++ source. The Code branch rebuilds indentation from x-offsets and blank lines from vertical gaps; what remains is recognition error (QImage: :Format, return gray,), not layout."
         },
         {
             "name": "dark-terminal-table",

@@ -45,6 +45,24 @@ std::vector<int> columnStarts(int from, int to, int step)
     return lefts;
 }
 
+/// Words laid out from real text, one line per entry, on a 10px character
+/// cell. Enough words to clear classify()'s evidence threshold.
+std::vector<textract::Word> fromLines(const QStringList &lines)
+{
+    std::vector<textract::Word> words;
+    for (int line = 0; line < lines.size(); ++line) {
+        const QString &source = lines.at(line);
+        int cursor = 10 * int(source.size() - source.trimmed().size());
+        for (const QString &token : source.split(QLatin1Char(' '),
+                                                 Qt::SkipEmptyParts)) {
+            words.push_back(makeWord(token, cursor, line * 20,
+                                     10 * int(token.size())));
+            cursor += 10 * int(token.size()) + 10;
+        }
+    }
+    return words;
+}
+
 } // namespace
 
 class TestAnalyze : public QObject
@@ -70,6 +88,49 @@ private Q_SLOTS:
 
         QCOMPARE(textract::classify(words, QImage()).kind,
                  textract::LayoutKind::Raw);
+    }
+
+    /// Brackets and semicolons are what separate source from every other
+    /// monospaced thing on a desktop. Advance-width variance does not: a build
+    /// log and a source listing are both monospace, so it cannot tell them
+    /// apart, and on this corpus punctuation density can — 0.068 for the code
+    /// fixture against 0.006 for the next highest.
+    void classifiesBracketDenseTextAsCode()
+    {
+        const auto result = textract::classify(fromLines({
+            QStringLiteral("QImage preprocess(const QImage &crop)"),
+            QStringLiteral("{"),
+            QStringLiteral("    if (crop.isNull()) {"),
+            QStringLiteral("        return QImage();"),
+            QStringLiteral("    }"),
+            QStringLiteral("    QImage gray = convert(crop);"),
+            QStringLiteral("    if (mean(gray) < threshold) {"),
+            QStringLiteral("        gray.invertPixels();"),
+            QStringLiteral("    }"),
+            QStringLiteral("    return gray;"),
+            QStringLiteral("}"),
+        }), QImage());
+
+        QCOMPARE(result.kind, textract::LayoutKind::Code);
+        QVERIFY(result.confidence > 0.0f);
+    }
+
+    /// Terminal output has some punctuation but nowhere near a source file's.
+    /// Calling it Code would reconstruct indentation that was column padding.
+    void doesNotCallOccasionalPunctuationCode()
+    {
+        const auto result = textract::classify(fromLines({
+            QStringLiteral("Test project /build/textract"),
+            QStringLiteral("    Start 1: appstreamtest"),
+            QStringLiteral("1/8 Test #1: appstreamtest ... Passed 0.01 sec"),
+            QStringLiteral("    Start 2: test_rawimage"),
+            QStringLiteral("2/8 Test #2: test_rawimage ... Passed 0.05 sec"),
+            QStringLiteral("    Start 3: test_geometry"),
+            QStringLiteral("3/8 Test #3: test_geometry ... Passed 0.04 sec"),
+            QStringLiteral("100% tests passed out of 8"),
+        }), QImage());
+
+        QVERIFY(result.kind != textract::LayoutKind::Code);
     }
 
     /// One wide full-height gutter with dense text either side is a

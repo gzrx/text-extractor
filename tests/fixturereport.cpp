@@ -40,6 +40,17 @@ QString defaultManifest()
     return QStringLiteral(TEXTRACT_FIXTURE_DIR "/manifest.json");
 }
 
+QString layoutName(LayoutKind kind)
+{
+    switch (kind) {
+    case LayoutKind::Raw:   return QStringLiteral("raw");
+    case LayoutKind::Code:  return QStringLiteral("code");
+    case LayoutKind::Prose: return QStringLiteral("prose");
+    case LayoutKind::Table: return QStringLiteral("table");
+    }
+    return QStringLiteral("?");
+}
+
 /// Returns the score for one fixture at one upscale factor, or -1 if the
 /// fixture could not be run at all.
 double scoreAt(TesseractEngine &engine, const Fixture &fixture,
@@ -101,6 +112,58 @@ int dumpFixture(const std::vector<Fixture> &fixtures, const QString &name,
     return 0;
 }
 
+/**
+ * Scores every fixture under every layout.
+ *
+ * The classifier's job is to pick a column of this table, so this is what says
+ * whether a signal is worth its risk: the gap between a fixture's best column
+ * and its Raw column is what a correct classification wins, and the gap
+ * between Raw and its worst column is what a wrong one costs.
+ */
+int layoutMatrix(const std::vector<Fixture> &fixtures, bool binarize)
+{
+    const std::pair<LayoutKind, const char *> kinds[] = {
+        {LayoutKind::Raw, "raw"},
+        {LayoutKind::Code, "code"},
+        {LayoutKind::Prose, "prose"},
+        {LayoutKind::Table, "table"},
+    };
+
+    PreprocessOptions options;
+    options.binarize = binarize;
+
+    std::printf("%-30s", "fixture");
+    for (const auto &[kind, name] : kinds) {
+        std::printf("%9s", name);
+    }
+    std::printf("   declared\n");
+
+    TesseractEngine engine;
+    for (const Fixture &fixture : fixtures) {
+        if (!langdataAvailable(fixture.langs)) {
+            continue;
+        }
+        QImage crop;
+        if (!crop.load(fixture.imagePath)) {
+            continue;
+        }
+        QFile expectedFile(fixture.expectedPath);
+        if (!expectedFile.open(QIODevice::ReadOnly)) {
+            continue;
+        }
+        const QString expected = QString::fromUtf8(expectedFile.readAll());
+
+        std::printf("%-30s", qPrintable(fixture.name));
+        for (const auto &[kind, name] : kinds) {
+            const auto result = extractText(engine, crop, fixture.langs, kind,
+                                            options);
+            std::printf("%9.4f", similarity(expected, result.text));
+        }
+        std::printf("   %s\n", qPrintable(layoutName(fixture.layout)));
+    }
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -110,11 +173,14 @@ int main(int argc, char **argv)
     bool binarize = false;
     QString manifest = defaultManifest();
     QString dump;
+    bool matrix = false;
 
     const QStringList arguments = app.arguments().mid(1);
     for (int i = 0; i < arguments.size(); ++i) {
         if (arguments.at(i) == QLatin1String("--binarize")) {
             binarize = true;
+        } else if (arguments.at(i) == QLatin1String("--matrix")) {
+            matrix = true;
         } else if (arguments.at(i) == QLatin1String("--dump")
                    && i + 1 < arguments.size()) {
             dump = arguments.at(++i);
@@ -139,6 +205,9 @@ int main(int argc, char **argv)
 
     if (!dump.isEmpty()) {
         return dumpFixture(fixtures, dump, binarize);
+    }
+    if (matrix) {
+        return layoutMatrix(fixtures, binarize);
     }
 
     std::printf("corpus: %s%s\n\n", qPrintable(manifest),
