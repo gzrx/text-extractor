@@ -49,6 +49,13 @@ struct Settings {
     }
 };
 
+/// loadSettings(), saveSettings(), and resolveModelDir() open no config file
+/// themselves -- src/main.cpp is the ONLY KSharedConfig::openConfig call site
+/// in the tree, and no test binary links main.cpp. That single call site,
+/// not what textract_lib is linked into, is what keeps a developer's personal
+/// config file from being able to move a fixture-corpus score. Do not add a
+/// second openConfig call site inside textract_lib.
+///
 /// Reads `root`'s subgroups. Pure: opens nothing and consults no environment.
 Settings loadSettings(const KConfigGroup &root);
 

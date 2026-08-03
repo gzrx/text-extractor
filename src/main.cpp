@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QKeySequence>
+#include <QMessageBox>
 #include <QTextStream>
 
 #include "app/extractorcontroller.h"
@@ -19,7 +20,6 @@
 #include "config/configdialog.h"
 #include "config/settings.h"
 #include "models/fetch.h"
-#include "ocr/onnxpaddleengine.h"
 #include "ocr/tesseractengine.h"
 #include "overlay/selectionoverlay.h"
 
@@ -89,6 +89,12 @@ int main(int argc, char **argv)
         KConfigGroup root = config->group(QString());
         textract::saveSettings(root, settings, KConfigBase::Notify);
         if (!config->sync()) {
+            // --configure is normally launched from a desktop entry or KRunner,
+            // where stderr goes nowhere. Without this the dialog just vanishes
+            // and a failed write is indistinguishable from a successful one.
+            QMessageBox::critical(
+                nullptr, QStringLiteral("Could not save settings"),
+                QStringLiteral("Failed to write %1.").arg(config->name()));
             err << "could not write " << config->name() << "\n";
             return 1;
         }
@@ -98,7 +104,7 @@ int main(int argc, char **argv)
 
     if (parser.isSet(fetchModelsOption)) {
         // No compositor, no overlay, no ScreenShot2 authorisation needed. The
-        // QGuiApplication above is already constructed and is left alone rather
+        // QApplication above is already constructed and is left alone rather
         // than restructured; this branch simply uses none of it.
         //
         // The configured directory, not the default: a user who moved their
@@ -174,12 +180,23 @@ int main(int argc, char **argv)
 
     if (parser.isSet(daemonMode)) {
         auto *controller = new textract::ExtractorController(&app);
-        controller->applySettings(settings);
+
+        // warmUp() before applySettings(), deliberately. warmUp() sets m_langs,
+        // so applySettings()'s language branch then compares equal and does
+        // nothing, leaving it to apply only the preprocessing options and the
+        // model directory. The other order double-initialises: applySettings()
+        // would run its own recovery for a bad language, and the warmUp() after
+        // it would tear the recovered engine straight back down.
+        //
+        // A language that will not load is fatal HERE and non-fatal in
+        // applySettings(), and that asymmetry is intended: at startup there is
+        // no working engine to fall back to, but in a running daemon there is.
         if (!controller->warmUp(settings.langs)) {
             err << "could not load tesseract data for '" << settings.langs
                 << "'; install the tesseract-data package for it\n";
             return 1;
         }
+        controller->applySettings(settings);
 
         auto *action = new QAction(&app);
         action->setObjectName(QStringLiteral("extract_text"));
@@ -218,6 +235,9 @@ int main(int argc, char **argv)
         const QList<QKeySequence> tier2Shortcut{
             QKeySequence(Qt::ShiftModifier | Qt::Key_Calculator)};
 
+        // Same NoAutoloading asymmetry as extract_text above, for the same
+        // reason; the stored-binding remedy there applies here with
+        // --key extract_text_tier2.
         KGlobalAccel::self()->setDefaultShortcut(tier2Action, tier2Shortcut,
                                                  KGlobalAccel::NoAutoloading);
         KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut);
