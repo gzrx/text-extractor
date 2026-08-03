@@ -87,6 +87,10 @@ add_test(NAME install_paths_agree
         -DDESKTOP=${CMAKE_CURRENT_BINARY_DIR}/org.kde.textract.desktop
         -DUNIT=${CMAKE_CURRENT_BINARY_DIR}/textract.service
         -DEXPECTED=${TEXTRACT_EXEC}
+        -DINSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+        -DKDE_INSTALL_BINDIR=${KDE_INSTALL_BINDIR}
+        -DKDE_INSTALL_SYSTEMDUSERUNITDIR=${KDE_INSTALL_SYSTEMDUSERUNITDIR}
+        -DINSTALL_SCRIPT=${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
         -P ${CMAKE_SOURCE_DIR}/tests/check-install-paths.cmake)
 
 # Development entry pointing at the build-tree binary, so the uninstalled build
