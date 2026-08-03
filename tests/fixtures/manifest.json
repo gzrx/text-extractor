@@ -1,85 +1,94 @@
 {
-    "fixtures": [
-        {
-            "name": "dark-terminal-buildlog",
-            "image": "dark-terminal-buildlog.png",
-            "expected": "dark-terminal-buildlog.txt",
-            "langs": "eng",
-            "layout": "raw",
-            "minScore": 0.93,
-            "notes": "Dark-mode Konsole, build and ctest output. Polarity path, and column-aligned test results."
-        },
-        {
-            "name": "dark-terminal-code",
-            "image": "dark-terminal-code.png",
-            "expected": "dark-terminal-code.txt",
-            "langs": "eng",
-            "layout": "code",
-            "minScore": 0.96,
-            "notes": "Dark-mode C++ source. The Code branch rebuilds indentation from x-offsets and blank lines from vertical gaps; what remains is recognition error (QImage: :Format, return gray,), not layout."
-        },
-        {
-            "name": "dark-terminal-table",
-            "image": "dark-terminal-table.png",
-            "expected": "dark-terminal-table.txt",
-            "langs": "eng",
-            "layout": "table",
-            "minScore": 0.98,
-            "notes": "Monospaced whitespace-aligned table. Expected text is tab-separated: the Table branch emits TSV so a captured table pastes into a spreadsheet as real cells."
-        },
-        {
-            "name": "dark-terminal-malay",
-            "image": "dark-terminal-malay.png",
-            "expected": "dark-terminal-malay.txt",
-            "langs": "msa",
-            "layout": "prose",
-            "minScore": 0.98,
-            "notes": "Bahasa Melayu prose, dark background, expected text unwrapped. Skipped when msa langdata is absent."
-        },
-        {
-            "name": "dark-terminal-cjk",
-            "image": "dark-terminal-cjk.png",
-            "expected": "dark-terminal-cjk.txt",
-            "langs": "chi_sim",
-            "layout": "prose",
-            "minScore": 0.84,
-            "notes": "Simplified Chinese with full-width punctuation. Skipped when chi_sim langdata is absent. Tesseract emits one character per word, so the assembler must not space them apart."
-        },
-        {
-            "name": "small-ui-text",
-            "image": "small-ui-text.png",
-            "expected": "small-ui-text.txt",
-            "langs": "eng",
-            "layout": "raw",
-            "minScore": 0.92,
-            "notes": "Same content as dark-terminal-buildlog at a 7pt font on a 1.25-scaled display; the small-text case."
-        },
-        {
-            "name": "light-prose",
-            "image": "light-prose.png",
-            "expected": "light-prose.txt",
-            "langs": "eng",
-            "layout": "prose",
-            "minScore": 0.98,
-            "notes": "Serif prose on white. Expected text is unwrapped: the Prose branch joins the rendered line wrapping back into paragraphs."
-        },
-        {
-            "name": "spreadsheet-table",
-            "image": "spreadsheet-table.png",
-            "expected": "spreadsheet-table.txt",
-            "langs": "eng",
-            "layout": "table",
-            "minScore": 0.98,
-            "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics, expected as TSV. Its column gaps are only 3-12px because left-aligned headers nearly touch right-aligned numerics, which is why column detection keys on full height rather than gap width."
-        },
-        {
-            "name": "pdf-two-column",
-            "image": "pdf-two-column.png",
-            "expected": "pdf-two-column.txt",
-            "langs": "eng",
-            "layout": "prose",
-            "minScore": 0.997,
-            "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. M5's dictionary check fixed the \"bleed-through\" reglue, worth 0.0012. The remaining error is not correction's: the paragraph that runs across the column boundary is split, because Tesseract numbers the two halves as different blocks and the Prose branch honours block breaks as paragraph breaks."
-        }
-    ]
+  "fixtures": [
+    {
+      "name": "dark-terminal-buildlog",
+      "image": "dark-terminal-buildlog.png",
+      "expected": "dark-terminal-buildlog.txt",
+      "langs": "eng",
+      "layout": "raw",
+      "minScore": 0.93,
+      "minScoreTier2": 0.94,
+      "notes": "Dark-mode Konsole, build and ctest output. Polarity path, and column-aligned test results. Tier 2 scores below tier 1 here (0.9472 against 0.9528): PP-OCR loses on small monospace punctuation. Measured, and it is why both tiers exist."
+    },
+    {
+      "name": "dark-terminal-code",
+      "image": "dark-terminal-code.png",
+      "expected": "dark-terminal-code.txt",
+      "langs": "eng",
+      "layout": "code",
+      "minScore": 0.96,
+      "minScoreTier2": 0.99,
+      "notes": "Dark-mode C++ source. The Code branch rebuilds indentation from x-offsets and blank lines from vertical gaps; what remains is recognition error (QImage: :Format, return gray,), not layout."
+    },
+    {
+      "name": "dark-terminal-table",
+      "image": "dark-terminal-table.png",
+      "expected": "dark-terminal-table.txt",
+      "langs": "eng",
+      "layout": "table",
+      "minScore": 0.98,
+      "minScoreTier2": 0.99,
+      "notes": "Monospaced whitespace-aligned table. Expected text is tab-separated: the Table branch emits TSV so a captured table pastes into a spreadsheet as real cells."
+    },
+    {
+      "name": "dark-terminal-malay",
+      "image": "dark-terminal-malay.png",
+      "expected": "dark-terminal-malay.txt",
+      "langs": "msa",
+      "layout": "prose",
+      "minScore": 0.98,
+      "minScoreTier2": 0.99,
+      "notes": "Bahasa Melayu prose, dark background, expected text unwrapped. Skipped when msa langdata is absent."
+    },
+    {
+      "name": "dark-terminal-cjk",
+      "image": "dark-terminal-cjk.png",
+      "expected": "dark-terminal-cjk.txt",
+      "langs": "chi_sim",
+      "layout": "prose",
+      "minScore": 0.84,
+      "minScoreTier2": 0.99,
+      "notes": "Simplified Chinese with full-width punctuation. Skipped when chi_sim langdata is absent. Tesseract emits one character per word, so the assembler must not space them apart. Tier 2 reaches 1.0000 here against tier 1's 0.8808, fixing the full-width comma. This is the fixture that justifies the tier-2 dependency."
+    },
+    {
+      "name": "small-ui-text",
+      "image": "small-ui-text.png",
+      "expected": "small-ui-text.txt",
+      "langs": "eng",
+      "layout": "raw",
+      "minScore": 0.92,
+      "minScoreTier2": 0.93,
+      "notes": "Same content as dark-terminal-buildlog at a 7pt font on a 1.25-scaled display; the small-text case."
+    },
+    {
+      "name": "light-prose",
+      "image": "light-prose.png",
+      "expected": "light-prose.txt",
+      "langs": "eng",
+      "layout": "prose",
+      "minScore": 0.98,
+      "minScoreTier2": 0.99,
+      "notes": "Serif prose on white. Expected text is unwrapped: the Prose branch joins the rendered line wrapping back into paragraphs."
+    },
+    {
+      "name": "spreadsheet-table",
+      "image": "spreadsheet-table.png",
+      "expected": "spreadsheet-table.txt",
+      "langs": "eng",
+      "layout": "table",
+      "minScore": 0.98,
+      "minScoreTier2": 0.91,
+      "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics, expected as TSV. Its column gaps are only 3-12px because left-aligned headers nearly touch right-aligned numerics, which is why column detection keys on full height rather than gap width. Tier 2 scores 0.9211 against tier 1's 1.0000: the DB detector merges some adjacent right-aligned numeric cells."
+    },
+    {
+      "name": "pdf-two-column",
+      "image": "pdf-two-column.png",
+      "expected": "pdf-two-column.txt",
+      "langs": "eng",
+      "layout": "prose",
+      "minScore": 0.997,
+      "minScoreTier2": 0.76,
+      "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. M5's dictionary check fixed the \"bleed-through\" reglue, worth 0.0012. The remaining error is not correction's: the paragraph that runs across the column boundary is split, because Tesseract numbers the two halves as different blocks and the Prose branch honours block breaks as paragraph breaks. Tier 2 scores 0.7689 against tier 1's 0.9975. order/ reads the columns correctly, but DB emits ONE detection box spanning both columns for the top line, so that line's two halves interleave. Tesseract's own layout analysis handles this fixture better; tier 2 is not the tool for two-column PDFs."
+    }
+  ]
 }

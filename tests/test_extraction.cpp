@@ -10,6 +10,49 @@
 
 using namespace textract::testimages;
 
+namespace {
+
+/// An engine that reports text-line boxes with no ordering, the way a
+/// detector-plus-recogniser does. Returns words deliberately out of order so a
+/// missing orderWords() call is visible rather than coincidentally correct.
+class UnorderedEngine : public textract::OcrEngine
+{
+public:
+    std::vector<textract::Word> recognize(const QImage &,
+                                          const QString &,
+                                          textract::Segmentation mode) override
+    {
+        ++m_calls;
+        m_lastMode = mode;
+
+        auto word = [](const QString &text, int x, int y, int sourceLine) {
+            textract::Word w;
+            w.text = text;
+            w.bbox = QRect(x, y, 10 * int(text.size()), 16);
+            w.confidence = 0.9f;
+            w.line = sourceLine;
+            w.block = 0;
+            return w;
+        };
+        // Bottom line first: only ordering can fix this.
+        return {word(QStringLiteral("second"), 10, 40, 1),
+                word(QStringLiteral("first"), 10, 10, 0)};
+    }
+
+    bool isWarm() const override { return true; }
+    void setUpscaleFactor(int) override {}
+    bool providesReadingOrder() const override { return false; }
+
+    int calls() const { return m_calls; }
+    textract::Segmentation lastMode() const { return m_lastMode; }
+
+private:
+    int m_calls{0};
+    textract::Segmentation m_lastMode{textract::Segmentation::SingleBlock};
+};
+
+} // namespace
+
 class TestExtraction : public QObject
 {
     Q_OBJECT
@@ -170,6 +213,37 @@ private Q_SLOTS:
         for (const auto &word : result.words) {
             QVERIFY(crop.rect().contains(word.bbox));
         }
+    }
+
+    /// An engine without its own reading order gets one from order/, so the
+    /// text comes out top-to-bottom even though the engine returned it
+    /// bottom-first.
+    void ordersWordsForAnEngineThatDoesNotProvideOrder()
+    {
+        UnorderedEngine engine;
+        QImage crop(200, 80, QImage::Format_RGB32);
+        crop.fill(Qt::white);
+
+        const auto result = textract::extractText(engine, crop,
+                                                  QStringLiteral("eng"),
+                                                  textract::LayoutKind::Raw, {});
+
+        QVERIFY(result.text.indexOf(QStringLiteral("first"))
+                < result.text.indexOf(QStringLiteral("second")));
+    }
+
+    /// Such an engine has no page-segmentation stage, so a second recognise
+    /// pass would cost a full inference to return byte-identical words.
+    void doesNotRecogniseTwiceForAnEngineWithoutSegmentation()
+    {
+        UnorderedEngine engine;
+        QImage crop(200, 80, QImage::Format_RGB32);
+        crop.fill(Qt::white);
+
+        textract::extractText(engine, crop, QStringLiteral("eng"), std::nullopt,
+                              {});
+
+        QCOMPARE(engine.calls(), 1);
     }
 
 private:

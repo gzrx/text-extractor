@@ -23,6 +23,11 @@ pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract)
 pkg_check_modules(Leptonica REQUIRED IMPORTED_TARGET lept)
 pkg_check_modules(Hunspell REQUIRED IMPORTED_TARGET hunspell)
 
+# Tier 2. The CPU build is a deliberate choice: the CUDA stack costs ~6 GiB
+# against 25 MiB and buys nothing at this model size, and Arch's CUDA build does
+# ship sm_120 so the Blackwell question is settled. See docs HANDOFF section 12.
+pkg_check_modules(ONNXRuntime REQUIRED IMPORTED_TARGET libonnxruntime)
+
 enable_testing()
 add_subdirectory(src)
 add_subdirectory(tests)

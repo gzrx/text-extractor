@@ -28,6 +28,10 @@ public:
                                 Segmentation mode) override;
     bool isWarm() const override;
 
+    /// Tesseract runs full page segmentation and numbers its own lines and
+    /// blocks, which is exactly what Segmentation selects between.
+    bool providesReadingOrder() const override { return true; }
+
     /// Divisor applied to reported boxes so they land in original crop
     /// coordinates. extractText() sets this from effectiveUpscale().
     void setUpscaleFactor(int factor) override
