@@ -40,7 +40,14 @@ makedepends=('cmake' 'extra-cmake-modules' 'git' 'ki18n' 'kwindowsystem' 'pkgcon
 
 # The corpus scores two non-English fixtures and one fixture depends on a
 # Hunspell dictionary, so check() needs all three or those rows skip.
-checkdepends=('hunspell-en_us' 'tesseract-data-chi_sim' 'tesseract-data-msa')
+#
+# ttf-dejavu is for two tests that synthesise their own crops with QPainter
+# in "DejaVu Sans" and "DejaVu Serif" rather than reading a committed image.
+# This host happens to have those families already, so the gap is invisible
+# here; without them Qt substitutes silently, Tesseract reads the resulting
+# tofu, and the tests fail looking like an OCR regression rather than a
+# missing dependency.
+checkdepends=('hunspell-en_us' 'tesseract-data-chi_sim' 'tesseract-data-msa' 'ttf-dejavu')
 
 optdepends=(
   'hunspell-en_us: dictionary check that keeps a genuine hyphen in prose'
