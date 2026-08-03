@@ -1,0 +1,9 @@
+Region Quarter Units Revenue Margin
+North Q1 1240 48600 0.31
+North Q2 1385 54200 0.33
+South Q1 970 37100 0.28
+South Q2 1042 40850 0.29
+East Q1 1610 63400 0.35
+East Q2 1738 69120 0.36
+West Q1 845 32900 0.26
+West Q2 902 35480 0.27

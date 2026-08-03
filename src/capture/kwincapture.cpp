@@ -17,10 +17,51 @@
 #include <QVariantMap>
 
 #include <cerrno>
+#include <climits>
 #include <fcntl.h>
 #include <unistd.h>
 
 namespace textract {
+
+bool executableWasReplaced()
+{
+    char buffer[PATH_MAX];
+    const ssize_t n = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (n < 0) {
+        return false; // no procfs: assume intact rather than misdiagnose
+    }
+    return QString::fromLocal8Bit(buffer, int(n))
+        .endsWith(QLatin1String(" (deleted)"));
+}
+
+QString authorisationErrorText(const QString &executablePath,
+                               bool executableReplaced)
+{
+    if (executableReplaced) {
+        return QStringLiteral(
+                   "KWin refused the screenshot: this process's binary was "
+                   "replaced after it started.\n"
+                   "/proc/self/exe no longer resolves to a file on disk, so "
+                   "KWin cannot match it against any .desktop entry. Nothing "
+                   "is wrong with the desktop file — a rebuild relinked the "
+                   "binary underneath this still-running process:\n  %1\n"
+                   "Restart it. A freshly launched process is authorised "
+                   "immediately.")
+            .arg(executablePath);
+    }
+
+    return QStringLiteral(
+               "KWin refused the screenshot: this binary is not authorised.\n"
+               "An installed .desktop file must contain "
+               "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 "
+               "(case-sensitive) and an Exec= line whose absolute path is "
+               "exactly this binary:\n  %1\n"
+               "For a build-tree binary, run:\n"
+               "  cp build/org.kde.textract.dev.desktop "
+               "~/.local/share/applications/\n"
+               "  kbuildsycoca6")
+        .arg(executablePath);
+}
 
 namespace {
 
@@ -125,17 +166,9 @@ CaptureResult captureWorkspace(QString *error)
             replyFailed = true;
             const QString name = reply.error().name();
             if (name.contains(QLatin1String("NoAuthorized"))) {
-                replyError = QStringLiteral(
-                    "KWin refused the screenshot: this binary is not "
-                    "authorised.\n"
-                    "An installed .desktop file must contain "
-                    "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2 "
-                    "(case-sensitive) and an Exec= line whose absolute path is "
-                    "exactly this binary:\n  %1\n"
-                    "For a build-tree binary, run:\n"
-                    "  cp build/org.kde.textract.dev.desktop "
-                    "~/.local/share/applications/")
-                                 .arg(QCoreApplication::applicationFilePath());
+                replyError = authorisationErrorText(
+                    QCoreApplication::applicationFilePath(),
+                    executableWasReplaced());
             } else {
                 replyError = QStringLiteral("ScreenShot2 call failed: %1: %2")
                                  .arg(name, reply.error().message());

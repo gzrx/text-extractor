@@ -1,0 +1,25 @@
+-- The CXX compiler identification is GNU 15.2.1
+-- Detecting CXX compiler ABI info - done
+-- Found Qt6Core: 6.9.1 (found version "6.9.1")
+-- Found Tesseract: 5.5.0
+-- Found Leptonica: 1.87.0
+-- Configuring done (2.4s)
+-- Generating done (0.1s)
+[ 12%] Building CXX object src/capture/rawimage.cpp.o
+[ 25%] Building CXX object src/overlay/geometry.cpp.o
+[ 37%] Building CXX object src/preprocess/preprocess.cpp.o
+[ 50%] Building CXX object src/ocr/tesseractengine.cpp.o
+[ 62%] Building CXX object src/assemble/assemble.cpp.o
+[ 75%] Linking CXX executable bin/textract
+[ 87%] Linking CXX executable bin/test_preprocess
+[100%] Built target textract
+
+Test project /build
+      Start  1: test_rawimage
+ 1/9  Test  #1: test_rawimage ............   Passed    0.03 sec
+ 2/9  Test  #2: test_geometry ............   Passed    0.02 sec
+ 3/9  Test  #3: test_preprocess ..........   Passed    0.07 sec
+ 4/9  Test  #4: test_tesseractengine .....   Passed    0.36 sec
+ 5/9  Test  #5: test_assemble ............   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 9

@@ -1,0 +1,13 @@
+Perisian ini membaca teks daripada kawasan skrin yang dipilih
+oleh pengguna. Selepas kawasan itu ditanda, imej tersebut akan
+diproses terlebih dahulu supaya warna latar dan saiz huruf
+menjadi seragam sebelum dihantar kepada enjin pengecaman.
+
+Hasil pengecaman kemudian disusun semula mengikut susun atur
+asal teks itu. Sekiranya teks itu merupakan kod sumber, jarak
+inden pada setiap baris akan dikekalkan. Bagi teks biasa pula,
+baris yang terputus akan dicantumkan semula menjadi perenggan
+yang lengkap.
+
+Akhirnya teks yang siap disalin terus ke papan keratan supaya
+pengguna boleh menampalnya ke mana-mana aplikasi lain.

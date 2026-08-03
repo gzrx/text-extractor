@@ -30,6 +30,13 @@ ecm_add_test(test_extraction.cpp
     LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
 )
 
+# Only the authorisation message, which is pure. Capturing itself still needs a
+# live compositor and stays untested.
+ecm_add_test(test_captureerror.cpp
+    TEST_NAME test_captureerror
+    LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
+)
+
 # Corpus loader and scorer, shared by the ctest gate and the report tool.
 add_library(textract_fixtures STATIC fixturecorpus.cpp)
 target_include_directories(textract_fixtures PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

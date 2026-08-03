@@ -1,0 +1,22 @@
+QImage preprocess(const QImage &crop, const PreprocessOptions &options)
+{
+    if (crop.isNull()) {
+        return QImage();
+    }
+
+    QImage gray = crop.convertToFormat(QImage::Format_Grayscale8);
+
+    if (meanLuminance(gray) < kDarkThreshold) {
+        gray.invertPixels();
+    }
+
+    const int factor = effectiveUpscale(options);
+    if (factor > 1) {
+        gray = gray.scaled(gray.width() * factor,
+                           gray.height() * factor,
+                           Qt::IgnoreAspectRatio,
+                           Qt::SmoothTransformation);
+    }
+
+    return gray;
+}

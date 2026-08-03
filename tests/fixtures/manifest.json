@@ -1,3 +1,85 @@
 {
-    "fixtures": []
+    "fixtures": [
+        {
+            "name": "dark-terminal-buildlog",
+            "image": "dark-terminal-buildlog.png",
+            "expected": "dark-terminal-buildlog.txt",
+            "langs": "eng",
+            "layout": "raw",
+            "minScore": 0.62,
+            "notes": "Dark-mode Konsole, build and ctest output. Polarity path, and column-aligned test results."
+        },
+        {
+            "name": "dark-terminal-code",
+            "image": "dark-terminal-code.png",
+            "expected": "dark-terminal-code.txt",
+            "langs": "eng",
+            "layout": "code",
+            "minScore": 0.72,
+            "notes": "Dark-mode C++ source. Indentation and punctuation density; the M4 Code branch will assert against this."
+        },
+        {
+            "name": "dark-terminal-table",
+            "image": "dark-terminal-table.png",
+            "expected": "dark-terminal-table.txt",
+            "langs": "eng",
+            "layout": "table",
+            "minScore": 0.12,
+            "notes": "Monospaced whitespace-aligned table. Expected text is space-joined; the M4 Table branch will change that form."
+        },
+        {
+            "name": "dark-terminal-malay",
+            "image": "dark-terminal-malay.png",
+            "expected": "dark-terminal-malay.txt",
+            "langs": "msa",
+            "layout": "prose",
+            "minScore": 0.98,
+            "notes": "Bahasa Melayu prose, dark background. Skipped when msa langdata is absent."
+        },
+        {
+            "name": "dark-terminal-cjk",
+            "image": "dark-terminal-cjk.png",
+            "expected": "dark-terminal-cjk.txt",
+            "langs": "chi_sim",
+            "layout": "prose",
+            "minScore": 0.5,
+            "notes": "Simplified Chinese with full-width punctuation. Skipped when chi_sim langdata is absent."
+        },
+        {
+            "name": "small-ui-text",
+            "image": "small-ui-text.png",
+            "expected": "small-ui-text.txt",
+            "langs": "eng",
+            "layout": "raw",
+            "minScore": 0.45,
+            "notes": "Same content as dark-terminal-buildlog at a 7pt font on a 1.25-scaled display; the small-text case."
+        },
+        {
+            "name": "light-prose",
+            "image": "light-prose.png",
+            "expected": "light-prose.txt",
+            "langs": "eng",
+            "layout": "prose",
+            "minScore": 0.98,
+            "notes": "Serif prose on white. Expected text preserves the rendered wrapping; the M4 Prose branch will join those lines."
+        },
+        {
+            "name": "spreadsheet-table",
+            "image": "spreadsheet-table.png",
+            "expected": "spreadsheet-table.txt",
+            "langs": "eng",
+            "layout": "table",
+            "minScore": 0.28,
+            "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics."
+        },
+        {
+            "name": "pdf-two-column",
+            "image": "pdf-two-column.png",
+            "expected": "pdf-two-column.txt",
+            "langs": "eng",
+            "layout": "prose",
+            "minScore": 0.98,
+            "notes": "Two-column justified PDF. Expected text is in true reading order, left column then right; the hardest M4 case."
+        }
+    ]
 }

@@ -1,0 +1,39 @@
+Optical character recog-
+nition has a long history,
+and the problems it faces
+on a screen are not the
+problems it faces on a
+page. A scanned docu-
+ment arrives with paper
+texture, skew, and bleed-
+through from the reverse
+side. A screen region ar-
+rives clean, perfectly
+axis aligned, and free of
+noise, but it arrives at
+whatever size the dis-
+play happened to render
+it.
+
+That difference matters
+more than it first ap-
+
+than any amount of
+clever thresholding.
+
+Background polarity is
+the other common trap.
+A great deal of text on a
+modern desktop is light
+on a dark background,
+which is the inverse of
+every page the engine
+was trained on. Modern
+engines cope with this
+better than they once
+did, but making the in-
+put uniform costs almost
+nothing and removes a
+variable from every
+measurement taken
+downstream.

@@ -10,7 +10,18 @@ as a new entry.
 
 ## Capturing a fixture
 
-The overlay needs a live compositor, so fixtures are captured by hand.
+Capturing needs a live compositor. It does *not* need a human at the keyboard:
+`--capture-test` grabs the whole screen non-interactively, so a fixture can
+equally be made by staging content, capturing, and cropping the region out of
+the result. `--select-test` below is simply the quickest route for a one-off.
+
+Two things bite when capturing without a person present. The screen dims and
+then blanks after a few minutes idle, because nothing is generating input
+events — poke the idle timer with
+`qdbus6 org.freedesktop.ScreenSaver /ScreenSaver SimulateUserActivity` and
+check the capture is not washed out before trusting it. And a terminal's block
+cursor is a solid rectangle no expected-text file can represent, so hide it
+with `printf '\033[?25l'` rather than trying to crop it out afterwards.
 
 ```bash
 cmake --build build -j$(nproc)
@@ -73,13 +84,32 @@ improves — that ratchet is the point.
 
 A fixture whose `langs` are not installed is skipped, not failed.
 
-## Coverage the spec asks for
+## Coverage
 
-- [ ] dark-mode terminal output — the polarity path
-- [ ] two-column PDF prose — M4's hardest case
-- [ ] Bahasa Melayu (`msa`) and CJK (`chi_sim`)
-- [ ] tables and spreadsheet regions
-- [ ] small-font UI text at 1.25 scale
+- [x] dark-mode terminal output — `dark-terminal-buildlog`, `dark-terminal-code`
+- [x] two-column PDF prose — `pdf-two-column`
+- [x] Bahasa Melayu and CJK — `dark-terminal-malay`, `dark-terminal-cjk`
+- [x] tables and spreadsheet regions — `dark-terminal-table`, `spreadsheet-table`
+- [x] small-font UI text at 1.25 scale — `small-ui-text`
+- [x] light-background prose — `light-prose`
+
+## Before committing a fixture
+
+A screenshot is a binary blob in a public repository, and it carries whatever
+happened to be on screen into it — where a text search will never find it.
+Stage the content deliberately rather than capturing the desktop as it looks,
+and check the result before adding it:
+
+```bash
+grep -rIl -E "<your account name>|<your email domain>|/home/" .
+for f in *.png; do strings "$f" | grep -E "<your account name>|/home/"; done
+```
+
+A browser opened with your normal profile will also put tabs, history and
+bookmarks on screen; use a throwaway profile for fixtures rendered in one.
+
+Look at every fixture before adding it, so what it contains is a decision
+rather than an accident.
 
 ## Running it
 

@@ -24,4 +24,25 @@ struct CaptureResult {
  */
 CaptureResult captureWorkspace(QString *error = nullptr);
 
+/**
+ * True when this process's executable has been unlinked or replaced on disk.
+ *
+ * Rebuilding relinks `bin/textract`, which replaces the inode underneath any
+ * already-running process. Linux then reports `/proc/self/exe` with a
+ * " (deleted)" suffix, and KWin — which authorises a caller by matching that
+ * path against `Exec=` lines — can no longer match it against anything.
+ */
+bool executableWasReplaced();
+
+/**
+ * Builds the guidance shown when KWin refuses a screenshot as unauthorised.
+ *
+ * Split by cause because the two remedies are unrelated. A missing or
+ * mismatched .desktop file needs the file installed; a replaced binary needs
+ * the process restarted, and re-installing the desktop file achieves nothing.
+ * Kept pure so it can be tested without a compositor.
+ */
+QString authorisationErrorText(const QString &executablePath,
+                               bool executableReplaced);
+
 } // namespace textract
