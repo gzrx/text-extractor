@@ -67,6 +67,28 @@ configure_file(${CMAKE_SOURCE_DIR}/data/org.kde.textract.desktop.in
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.kde.textract.desktop
         DESTINATION ${KDE_INSTALL_APPDIR})
 
+# The unit is generated from the same TEXTRACT_EXEC as the desktop entry above.
+# Before M7b it was a static file naming %h/.local/bin/textract, installed by
+# nothing and copied by hand per the README -- so the daemon started from a
+# path matching no desktop entry and every capture failed NoAuthorized.
+#
+# Note KDE_INSTALL_SYSTEMDUSERUNITDIR is ${KDE_INSTALL_LIBDIR}/systemd/user.
+# That is right for /usr, but a $HOME/.local prefix puts it in
+# ~/.local/lib/systemd/user, which systemd does NOT search (it looks in
+# ~/.local/share/systemd/user). The README says so rather than this file
+# second-guessing an ECM install variable.
+configure_file(${CMAKE_SOURCE_DIR}/data/textract.service.in
+               ${CMAKE_CURRENT_BINARY_DIR}/textract.service @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/textract.service
+        DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
+
+add_test(NAME install_paths_agree
+    COMMAND ${CMAKE_COMMAND}
+        -DDESKTOP=${CMAKE_CURRENT_BINARY_DIR}/org.kde.textract.desktop
+        -DUNIT=${CMAKE_CURRENT_BINARY_DIR}/textract.service
+        -DEXPECTED=${TEXTRACT_EXEC}
+        -P ${CMAKE_SOURCE_DIR}/tests/check-install-paths.cmake)
+
 # Development entry pointing at the build-tree binary, so the uninstalled build
 # can be authorised too. Install it with:
 #   cp build/org.kde.textract.dev.desktop ~/.local/share/applications/

@@ -1,0 +1,25 @@
+[Unit]
+Description=textract screen text extractor
+PartOf=graphical-session.target
+# A configured-but-uninstalled OCR language is fatal at startup by design:
+# there is no working engine to fall back to at that point, unlike in a running
+# daemon. Without a start limit that becomes an endless 2-second restart loop
+# whose queued KNotification is discarded every time, because app.exec() is
+# never reached -- so the user sees nothing at all. Three attempts and the unit
+# stays failed, which is a state systemctl can report truthfully.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+# Generated from TEXTRACT_EXEC, the same variable that fills the desktop
+# entry's Exec=. KWin matches the running executable against Exec= to authorise
+# ScreenShot2, so these two must name the same absolute path. Deriving both
+# from one variable is what stops them drifting apart again -- they had, across
+# three milestones, and the result installed cleanly and captured nothing.
+ExecStart=@TEXTRACT_EXEC@ --daemon
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
