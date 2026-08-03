@@ -105,6 +105,11 @@ systemctl --user daemon-reload
 cd packaging && makepkg -si
 ```
 
+`source=` is a `git+https://` URL, so this clones and builds the **pushed
+remote**, not your working tree — local edits you have not committed and pushed
+will not be in the package. That is correct for a VCS package; build with
+`cmake` directly if you want to test uncommitted changes.
+
 ### Running from the build tree
 
 KWin authorises screen capture by matching the running executable against an
