@@ -52,6 +52,38 @@ add_executable(textract main.cpp config/configdialog.cpp)
 target_link_libraries(textract PRIVATE
     textract_lib Qt6::Gui Qt6::Widgets KF6::GlobalAccel)
 
+# TEXTRACT_EXEC below is frozen at CONFIGURE time and baked into the desktop
+# entry and the systemd unit as an absolute path. install() destinations are
+# relative and resolved against CMAKE_INSTALL_PREFIX at INSTALL time, so
+#   cmake -B build && cmake --install build --prefix /opt/textract
+# puts the binary in /opt/textract/bin while both generated files still say
+# /usr/bin/textract -- KWin then sees an executable matching no Exec= and every
+# capture fails NoAuthorized, or the unit starts some other binary entirely.
+# That is the exact defect M7b existed to remove, reintroduced from the command
+# line, and the install_paths_agree test cannot see it because it runs at build
+# time. Refuse the install instead.
+#
+# DESTDIR is a different mechanism: it prefixes the staging root without
+# touching CMAKE_INSTALL_PREFIX, so packaging/PKGBUILD is unaffected.
+#
+# The escaping matters: \${CMAKE_INSTALL_PREFIX} survives into the generated
+# script and is read at install time, while the unescaped one is expanded now.
+#
+# Declared before every other install() rule in the project so a rejected
+# install writes nothing at all.
+install(CODE "
+if(NOT \"\${CMAKE_INSTALL_PREFIX}\" STREQUAL \"${CMAKE_INSTALL_PREFIX}\")
+    message(FATAL_ERROR
+        \"install prefix mismatch: this build tree was configured for \"
+        \"'${CMAKE_INSTALL_PREFIX}' and the desktop entry and systemd unit have \"
+        \"'${KDE_INSTALL_FULL_BINDIR}/textract' baked into them, but the install was asked for \"
+        \"'\${CMAKE_INSTALL_PREFIX}'. Those paths cannot be rewritten now, and a \"
+        \"mismatch means KWin refuses screen capture. Reconfigure instead: \"
+        \"cmake -B <dir> -DCMAKE_INSTALL_PREFIX=<prefix>. Use DESTDIR for staged \"
+        \"or packaged installs -- it does not change the prefix.\")
+endif()
+")
+
 install(TARGETS textract ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 # KWin authorises a caller for the restricted ScreenShot2 interface by mapping
@@ -87,7 +119,12 @@ add_test(NAME install_paths_agree
         -DDESKTOP=${CMAKE_CURRENT_BINARY_DIR}/org.kde.textract.desktop
         -DUNIT=${CMAKE_CURRENT_BINARY_DIR}/textract.service
         -DEXPECTED=${TEXTRACT_EXEC}
-        -P ${CMAKE_SOURCE_DIR}/tests/check-install-paths.cmake)
+        -DINSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+        -DKDE_INSTALL_BINDIR=${KDE_INSTALL_BINDIR}
+        -DKDE_INSTALL_SYSTEMDUSERUNITDIR=${KDE_INSTALL_SYSTEMDUSERUNITDIR}
+        -DKDE_INSTALL_APPDIR=${KDE_INSTALL_APPDIR}
+        -DINSTALL_SCRIPT=${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake
+        -P ${PROJECT_SOURCE_DIR}/tests/check-install-paths.cmake)
 
 # Development entry pointing at the build-tree binary, so the uninstalled build
 # can be authorised too. Install it with:
