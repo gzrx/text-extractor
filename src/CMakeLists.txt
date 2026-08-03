@@ -16,6 +16,7 @@ set(TEXTRACT_LIB_SOURCES
     assemble/columns.cpp
     order/order.cpp
     correct/dictionary.cpp
+    config/settings.cpp
     clipboard/clipboard.cpp
     app/extraction.cpp
     app/tier2cache.cpp
@@ -41,7 +42,7 @@ target_link_libraries(textract_lib PUBLIC
     Qt6::Core Qt6::Gui Qt6::DBus Qt6::Network LayerShellQt::Interface
     PkgConfig::Tesseract PkgConfig::Leptonica PkgConfig::Hunspell
     PkgConfig::ONNXRuntime
-    KF6::GuiAddons KF6::Notifications)
+    KF6::GuiAddons KF6::Notifications KF6::ConfigCore)
 
 add_executable(textract main.cpp)
 target_link_libraries(textract PRIVATE
