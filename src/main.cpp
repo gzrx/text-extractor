@@ -158,8 +158,27 @@ int main(int argc, char **argv)
         KGlobalAccel::self()->setShortcut(action, shortcut,
                                           KGlobalAccel::NoAutoloading);
 
+        auto *tier2Action = new QAction(&app);
+        tier2Action->setObjectName(QStringLiteral("extract_text_tier2"));
+        tier2Action->setText(QStringLiteral("Extract text (tier 2, PP-OCRv6)"));
+        QObject::connect(tier2Action, &QAction::triggered,
+                         controller, &textract::ExtractorController::extractTier2);
+
+        // Shift+Calculator. Shift also means "force Raw" when held through the
+        // drag, but those are different moments -- a shortcut chord versus a
+        // mouse drag -- and the tier-2 path that does open the overlay
+        // deliberately ignores the modifier. See ExtractorController::onSelected().
+        const QList<QKeySequence> tier2Shortcut{
+            QKeySequence(Qt::ShiftModifier | Qt::Key_Calculator)};
+
+        KGlobalAccel::self()->setDefaultShortcut(tier2Action, tier2Shortcut,
+                                                 KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut,
+                                          KGlobalAccel::NoAutoloading);
+
         QTextStream(stdout)
-            << "textract daemon ready; press the Calculator key\n";
+            << "textract daemon ready; Calculator = tier 1, "
+               "Shift+Calculator = tier 2\n";
         return app.exec();
     }
 
