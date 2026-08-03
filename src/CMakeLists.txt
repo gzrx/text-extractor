@@ -16,7 +16,6 @@ set(TEXTRACT_LIB_SOURCES
     assemble/columns.cpp
     order/order.cpp
     correct/dictionary.cpp
-    correct/correct.cpp
     clipboard/clipboard.cpp
     app/extraction.cpp
     app/tier2cache.cpp
