@@ -67,4 +67,16 @@ Settings loadSettings(const KConfigGroup &root);
 void saveSettings(KConfigGroup &root, const Settings &settings,
                   KConfigBase::WriteConfigFlags flags = KConfigBase::Normal);
 
+/**
+ * The model directory actually to use, highest precedence first:
+ *
+ *   1. the TEXTRACT_MODELS environment variable
+ *   2. Settings::modelDir
+ *   3. OnnxPaddleEngine::defaultModelDir()
+ *
+ * Separate from loadSettings() because it is the only part that reads the
+ * environment. Env stays on top so the fixture harness override keeps working.
+ */
+QString resolveModelDir(const Settings &settings);
+
 } // namespace textract

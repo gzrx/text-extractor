@@ -7,6 +7,8 @@
 
 #include <KConfigGroup>
 
+#include "ocr/onnxpaddleengine.h"
+
 namespace textract {
 
 namespace {
@@ -50,6 +52,18 @@ void saveSettings(KConfigGroup &root, const Settings &settings,
 
     KConfigGroup models = root.group(QLatin1String(kModelsGroup));
     models.writeEntry("Directory", settings.modelDir, flags);
+}
+
+QString resolveModelDir(const Settings &settings)
+{
+    const QByteArray fromEnv = qgetenv("TEXTRACT_MODELS");
+    if (!fromEnv.isEmpty()) {
+        return QString::fromLocal8Bit(fromEnv);
+    }
+    if (!settings.modelDir.isEmpty()) {
+        return settings.modelDir;
+    }
+    return OnnxPaddleEngine::defaultModelDir();
 }
 
 } // namespace textract

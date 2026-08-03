@@ -8,6 +8,7 @@
 #include <KConfigGroup>
 
 #include "config/settings.h"
+#include "ocr/onnxpaddleengine.h"
 
 using namespace textract;
 
@@ -20,6 +21,8 @@ private Q_SLOTS:
     void roundTripsEveryField();
     void eachKeyDefaultsIndependently();
     void upscaleIsClampedAtBothEnds();
+    void modelDirPrefersEnvThenConfigThenDefault();
+    void modelDirIgnoresAnEmptyEnvVariable();
 };
 
 /// The whole "an absent config file is not a special case" property rests on
@@ -103,6 +106,39 @@ void TestSettings::upscaleIsClampedAtBothEnds()
     high.group(QStringLiteral("Preprocess")).writeEntry("Upscale", 99);
     high.sync();
     QCOMPARE(loadSettings(high.group(QString())).preprocess.upscale, kMaxUpscale);
+}
+
+/// TEXTRACT_MODELS must stay on top: HANDOFF 13.5 uses it to point the fixture
+/// harness at a model directory, and a config file that could outrank it would
+/// make corpus scores depend on the developer's own settings.
+void TestSettings::modelDirPrefersEnvThenConfigThenDefault()
+{
+    Settings s;
+
+    qunsetenv("TEXTRACT_MODELS");
+    QCOMPARE(resolveModelDir(s), OnnxPaddleEngine::defaultModelDir());
+
+    s.modelDir = QStringLiteral("/opt/from-config");
+    QCOMPARE(resolveModelDir(s), QStringLiteral("/opt/from-config"));
+
+    qputenv("TEXTRACT_MODELS", "/opt/from-env");
+    QCOMPARE(resolveModelDir(s), QStringLiteral("/opt/from-env"));
+
+    qunsetenv("TEXTRACT_MODELS");
+    QCOMPARE(resolveModelDir(s), QStringLiteral("/opt/from-config"));
+}
+
+/// An exported-but-empty variable is how a shell profile disables an override,
+/// and treating it as a real path would resolve the model directory to "".
+void TestSettings::modelDirIgnoresAnEmptyEnvVariable()
+{
+    Settings s;
+    s.modelDir = QStringLiteral("/opt/from-config");
+
+    qputenv("TEXTRACT_MODELS", "");
+    QCOMPARE(resolveModelDir(s), QStringLiteral("/opt/from-config"));
+
+    qunsetenv("TEXTRACT_MODELS");
 }
 
 QTEST_GUILESS_MAIN(TestSettings)
