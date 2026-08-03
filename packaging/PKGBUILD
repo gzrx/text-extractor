@@ -77,6 +77,12 @@ check() {
   # The tier-2 corpus rows skip loudly here, by design: the PP-OCRv6 models are
   # a ~31 MB runtime download (textract --fetch-models) and are deliberately
   # not packaged, because binary blobs do not go in the public repo.
+  #
+  # A build chroot has no session, so there is no XDG_RUNTIME_DIR and no
+  # compositor; any test that constructs a Qt GUI application object aborts
+  # immediately without a platform plugin that can run headless. Force the
+  # offscreen platform so ctest exercises those tests instead of aborting them.
+  export QT_QPA_PLATFORM=offscreen
   ctest --test-dir build --output-on-failure
 }
 
