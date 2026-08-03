@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2026 gzrx
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Maintainer: gzrx <179876007+gzrx@users.noreply.github.com>
+
+pkgname=textract-git
+_pkgname=textract
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc="Extract text from a screen region on KDE Plasma Wayland"
+arch=('x86_64')
+url="https://github.com/gzrx/text-extractor"
+license=('GPL-3.0-or-later')
+
+# onnxruntime-cpu is a hard link-time dependency, not an optional extra: the
+# binary will not load without it. The CPU build is deliberate -- the CUDA
+# stack costs ~6 GiB against 25 MiB and buys nothing at this model size.
+#
+# tesseract-data-eng is invisible to ldd but is not optional either: without a
+# language, warmUp() fails and the daemon exits at startup. namcap suggests
+# dropping it because it sees no linkage -- it is a runtime data lookup, not
+# a library, and no linker will ever see it. Do not remove it on namcap's
+# say-so; without it the daemon exits at startup.
+#
+# curl, libarchive, and libglvnd were here from an earlier ldd pass on this
+# machine's Debug build, which links them; the packaged Release build does
+# not, because makepkg's default -Wl,--as-needed drops DT_NEEDED entries
+# nothing actually references. Reconciled against the shipped binary's own
+# DT_NEEDED in a clean chroot, not against a local build -- regenerating this
+# list from `ldd` on a Debug build elsewhere will reintroduce the same three.
+depends=(
+  'gcc-libs'
+  'glibc'
+  'hunspell'
+  'kconfig'
+  'kglobalaccel'
+  'kguiaddons'
+  'knotifications'
+  'layer-shell-qt'
+  'leptonica'
+  'onnxruntime-cpu'
+  'qt6-base'
+  'tesseract'
+  'tesseract-data-eng'
+)
+
+makedepends=('cmake' 'extra-cmake-modules' 'git' 'ki18n' 'kwindowsystem' 'pkgconf')
+
+# The corpus scores two non-English fixtures and one fixture depends on a
+# Hunspell dictionary, so check() needs all three or those rows skip.
+#
+# ttf-dejavu is for two tests that synthesise their own crops with QPainter
+# in "DejaVu Sans" and "DejaVu Serif" rather than reading a committed image.
+# This host happens to have those families already, so the gap is invisible
+# here; without them Qt substitutes silently, Tesseract reads the resulting
+# tofu, and the tests fail looking like an OCR regression rather than a
+# missing dependency.
+checkdepends=('hunspell-en_us' 'tesseract-data-chi_sim' 'tesseract-data-msa' 'ttf-dejavu')
+
+optdepends=(
+  'hunspell-en_us: dictionary check that keeps a genuine hyphen in prose'
+  'tesseract-data-chi_sim: Simplified Chinese for tier 1'
+  'tesseract-data-msa: Bahasa Melayu for tier 1'
+)
+
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+source=("$_pkgname::git+https://github.com/gzrx/text-extractor.git")
+sha256sums=('SKIP')
+
+# There are no tags yet, so this is the honest form rather than git describe
+# with a fallback that silently reports 0.0.0. Switch to git describe when a
+# release is tagged.
+pkgver() {
+  cd "$_pkgname"
+  printf "0.1.0.r%s.g%s" \
+    "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  # ninja is not a dependency here; Unix Makefiles is what the project builds
+  # and tests with.
+  cmake -B build -S "$_pkgname" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBEXECDIR=lib \
+    -Wno-dev
+  cmake --build build
+}
+
+check() {
+  # The tier-2 corpus rows skip loudly here, by design: the PP-OCRv6 models are
+  # a ~31 MB runtime download (textract --fetch-models) and are deliberately
+  # not packaged, because binary blobs do not go in the public repo.
+  #
+  # A build chroot has no session, so there is no XDG_RUNTIME_DIR and no
+  # compositor; any test that constructs a Qt GUI application object aborts
+  # immediately without a platform plugin that can run headless. Force the
+  # offscreen platform so ctest exercises those tests instead of aborting them.
+  export QT_QPA_PLATFORM=offscreen
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

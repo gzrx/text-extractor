@@ -1,0 +1,9 @@
+# makepkg / extra-x86_64-build artifacts: rebuilt on every run, and
+# textract/ below is a full nested clone of this repo -- none of this
+# belongs in public history.
+textract/
+src/
+pkg/
+*.pkg.tar.zst
+*.pkg.tar.zst.sig
+*.log
