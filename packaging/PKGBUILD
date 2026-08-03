@@ -1,0 +1,85 @@
+# SPDX-FileCopyrightText: 2026 gzrx
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Maintainer: gzrx <179876007+gzrx@users.noreply.github.com>
+
+pkgname=textract-git
+_pkgname=textract
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc="Extract text from a screen region on KDE Plasma Wayland"
+arch=('x86_64')
+url="https://github.com/gzrx/text-extractor"
+license=('GPL-3.0-or-later')
+
+# onnxruntime-cpu is a hard link-time dependency, not an optional extra: the
+# binary will not load without it. The CPU build is deliberate -- the CUDA
+# stack costs ~6 GiB against 25 MiB and buys nothing at this model size.
+#
+# tesseract-data-eng is invisible to ldd but is not optional either: without a
+# language, warmUp() fails and the daemon exits at startup.
+depends=(
+  'curl'
+  'gcc-libs'
+  'glibc'
+  'hunspell'
+  'kconfig'
+  'kglobalaccel'
+  'kguiaddons'
+  'knotifications'
+  'layer-shell-qt'
+  'leptonica'
+  'libarchive'
+  'libglvnd'
+  'onnxruntime-cpu'
+  'qt6-base'
+  'tesseract'
+  'tesseract-data-eng'
+)
+
+makedepends=('cmake' 'extra-cmake-modules' 'git' 'ki18n' 'kwindowsystem' 'pkgconf')
+
+# The corpus scores two non-English fixtures and one fixture depends on a
+# Hunspell dictionary, so check() needs all three or those rows skip.
+checkdepends=('hunspell-en_us' 'tesseract-data-chi_sim' 'tesseract-data-msa')
+
+optdepends=(
+  'hunspell-en_us: dictionary check that keeps a genuine hyphen in prose'
+  'tesseract-data-chi_sim: Simplified Chinese for tier 1'
+  'tesseract-data-msa: Bahasa Melayu for tier 1'
+)
+
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+source=("$_pkgname::git+https://github.com/gzrx/text-extractor.git")
+sha256sums=('SKIP')
+
+# There are no tags yet, so this is the honest form rather than git describe
+# with a fallback that silently reports 0.0.0. Switch to git describe when a
+# release is tagged.
+pkgver() {
+  cd "$_pkgname"
+  printf "0.1.0.r%s.g%s" \
+    "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  # ninja is not a dependency here; Unix Makefiles is what the project builds
+  # and tests with.
+  cmake -B build -S "$_pkgname" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBEXECDIR=lib \
+    -Wno-dev
+  cmake --build build
+}
+
+check() {
+  # The tier-2 corpus rows skip loudly here, by design: the PP-OCRv6 models are
+  # a ~31 MB runtime download (textract --fetch-models) and are deliberately
+  # not packaged, because binary blobs do not go in the public repo.
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
