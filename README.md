@@ -106,6 +106,24 @@ textract --capture-test /tmp/shot.png   # capture only; verifies authorisation
 textract --select-test  /tmp/crop.png   # capture + drag; writes the crop
 ```
 
+## Configuration
+
+```bash
+textract --configure
+```
+
+Opens a dialog for the tier-1 OCR languages and the tier-2 model directory.
+Settings live in `~/.config/textractrc` and a running daemon picks up changes
+immediately — no restart.
+
+Upscale factor and binarisation are readable from that file but are not in the
+dialog. Their defaults are measured against the fixture corpus, and changing
+them is an escape hatch for content the corpus does not cover rather than a
+tuning knob.
+
+Shortcuts are set in **System Settings → Shortcuts → textract**. The built-in
+defaults are Calculator for tier 1 and Shift+Calculator for tier 2.
+
 ## How it works
 
 The daemon captures the **entire workspace up front**, then lets you drag a
