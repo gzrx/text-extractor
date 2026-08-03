@@ -21,14 +21,29 @@ namespace {
 /// Against the taller box the same pair would never reach any sane threshold
 /// and the fragment would be stranded on a line of its own, which is exactly
 /// the interleaving that costs dark-terminal-buildlog its score.
+///
+/// SWEPT, AND IT MOVES NOTHING: 0.3, 0.4, 0.5 and 0.6 all give a tier-2 corpus
+/// mean of 0.9524, identical to four decimals. Recorded rather than tuned --
+/// the corpus cannot currently tell these apart, so do not read 0.4 as a
+/// measured optimum, and do not "improve" it without a fixture that separates
+/// them. That the merge happens matters; where its threshold sits does not.
 constexpr double kLineOverlapRatio = 0.4;
 
 /// A vertical gap larger than this many median line pitches starts a new block.
 ///
-/// Set from the corpus. Sweep it separately from kLineOverlapRatio: merging
-/// changes the line pitch this measures against, so tuning both at once
+/// SWEPT, AND THIS ONE DOES MATTER. Tier-2 corpus mean at 3x: 0.9463 at 1.0,
+/// 0.9524 across 1.15 to 1.6, 0.9517 at 1.8, 0.9474 at 2.0 and above. A plateau
+/// with a cliff at each end, and the ~0.006 drop off either edge is well past
+/// this project's 0.002 significance threshold.
+///
+/// 1.45 is the middle of that plateau, chosen over the equally-scoring 1.15 or
+/// 1.6 so the value is not sitting on an edge. Too low and every line break
+/// becomes a paragraph; too high and real paragraphs run together.
+///
+/// Swept separately from kLineOverlapRatio, which is required rather than tidy:
+/// merging changes the line pitch this measures against, so moving both at once
 /// measures neither.
-constexpr double kBlockGapRatio = 1.6;
+constexpr double kBlockGapRatio = 1.45;
 
 /// One visual line: the words on it and the union of their boxes.
 struct Line {
