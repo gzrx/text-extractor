@@ -5,6 +5,8 @@
 
 #include <memory>
 
+#include <QStringList>
+
 #include "ocr/ocrengine.h"
 
 namespace tesseract {
@@ -12,6 +14,15 @@ class TessBaseAPI;
 }
 
 namespace textract {
+
+/**
+ * Language codes with traineddata installed, sorted, excluding `osd`.
+ *
+ * Built from what is actually on disk rather than from a fixed table, so the
+ * config dialog cannot offer a language whose warmUp() would then fail.
+ * `osd` is orientation and script detection, not a recognisable language.
+ */
+QStringList availableLanguages();
 
 /// Tier-1 engine: a long-lived TessBaseAPI kept warm by the daemon.
 class TesseractEngine : public OcrEngine

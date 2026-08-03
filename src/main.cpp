@@ -3,23 +3,29 @@
 
 #include <LayerShellQt/Shell>
 
+#include <KConfigGroup>
+#include <KConfigWatcher>
 #include <KGlobalAccel>
+#include <KSharedConfig>
 
 #include <QAction>
+#include <QApplication>
 #include <QCommandLineParser>
-#include <QGuiApplication>
 #include <QKeySequence>
+#include <QMessageBox>
 #include <QTextStream>
 
 #include "app/extractorcontroller.h"
 #include "capture/kwincapture.h"
+#include "config/configdialog.h"
+#include "config/settings.h"
 #include "models/fetch.h"
-#include "ocr/onnxpaddleengine.h"
+#include "ocr/tesseractengine.h"
 #include "overlay/selectionoverlay.h"
 
 int main(int argc, char **argv)
 {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("textract"));
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
 
@@ -55,15 +61,57 @@ int main(int argc, char **argv)
         QStringLiteral("Download the tier-2 PP-OCRv6 models and exit."));
     parser.addOption(fetchModelsOption);
 
+    QCommandLineOption configureOption(
+        QStringLiteral("configure"),
+        QStringLiteral("Open the settings dialog and exit."));
+    parser.addOption(configureOption);
+
     parser.process(app);
 
     QTextStream err(stderr);
 
+    // main.cpp is the only place that opens KSharedConfig. config/settings.cpp
+    // is pure over whatever group it is handed, and nothing a test links reads
+    // config at all -- which is what keeps a local config file from being able
+    // to move a corpus score.
+    KSharedConfig::Ptr config = KSharedConfig::openConfig(
+        QStringLiteral("textractrc"), KConfig::SimpleConfig);
+    textract::Settings settings = textract::loadSettings(config->group(QString()));
+
+    if (parser.isSet(configureOption)) {
+        if (!textract::runConfigDialog(&settings, textract::availableLanguages())) {
+            return 0; // cancelled; nothing written
+        }
+
+        // Notify is what makes a running daemon reload. Without it the file is
+        // updated correctly and KConfigWatcher never emits configChanged(),
+        // which looks exactly like the watcher never being wired up.
+        KConfigGroup root = config->group(QString());
+        textract::saveSettings(root, settings, KConfigBase::Notify);
+        if (!config->sync()) {
+            // --configure is normally launched from a desktop entry or KRunner,
+            // where stderr goes nowhere. Without this the dialog just vanishes
+            // and a failed write is indistinguishable from a successful one.
+            QMessageBox::critical(
+                nullptr, QStringLiteral("Could not save settings"),
+                QStringLiteral("Failed to write %1.").arg(config->name()));
+            err << "could not write " << config->name() << "\n";
+            return 1;
+        }
+        QTextStream(stdout) << "Settings saved to " << config->name() << "\n";
+        return 0;
+    }
+
     if (parser.isSet(fetchModelsOption)) {
         // No compositor, no overlay, no ScreenShot2 authorisation needed. The
-        // QGuiApplication above is already constructed and is left alone rather
+        // QApplication above is already constructed and is left alone rather
         // than restructured; this branch simply uses none of it.
-        const QString dir = textract::OnnxPaddleEngine::defaultModelDir();
+        //
+        // The configured directory, not the default: a user who moved their
+        // models and then runs the repair tool means the directory they moved
+        // them to. Fetching into the default while the daemon reads elsewhere
+        // would report "models not installed" right after a successful fetch.
+        const QString dir = textract::resolveModelDir(settings);
         QTextStream(stdout) << "Fetching tier-2 models into " << dir << "\n";
 
         QString error;
@@ -132,11 +180,23 @@ int main(int argc, char **argv)
 
     if (parser.isSet(daemonMode)) {
         auto *controller = new textract::ExtractorController(&app);
-        if (!controller->warmUp(QStringLiteral("eng"))) {
-            err << "could not load tesseract 'eng' data; "
-                   "install tesseract-data-eng\n";
+
+        // warmUp() before applySettings(), deliberately. warmUp() sets m_langs,
+        // so applySettings()'s language branch then compares equal and does
+        // nothing, leaving it to apply only the preprocessing options and the
+        // model directory. The other order double-initialises: applySettings()
+        // would run its own recovery for a bad language, and the warmUp() after
+        // it would tear the recovered engine straight back down.
+        //
+        // A language that will not load is fatal HERE and non-fatal in
+        // applySettings(), and that asymmetry is intended: at startup there is
+        // no working engine to fall back to, but in a running daemon there is.
+        if (!controller->warmUp(settings.langs)) {
+            err << "could not load tesseract data for '" << settings.langs
+                << "'; install the tesseract-data package for it\n";
             return 1;
         }
+        controller->applySettings(settings);
 
         auto *action = new QAction(&app);
         action->setObjectName(QStringLiteral("extract_text"));
@@ -149,14 +209,18 @@ int main(int argc, char **argv)
         // existing Plasma shortcuts.
         const QList<QKeySequence> shortcut{QKeySequence(Qt::Key_Calculator)};
 
-        // NoAutoloading forces this binding instead of whatever KGlobalAccel
-        // has stored for the component from a previous run. Without it, a
-        // shortcut changed in code is silently ignored in favour of the
-        // persisted one in kglobalshortcutsrc.
+        // NoAutoloading on setDefaultShortcut pins what this build considers the
+        // default. setShortcut deliberately does NOT pass it, so a binding the user
+        // set in System Settings is loaded and wins.
+        //
+        // This reverses an earlier decision, and the trap it was avoiding comes
+        // back -- for developers only. Once a binding is stored, changing the
+        // QKeySequence below appears to do nothing. Clear it with:
+        //   kwriteconfig6 --file kglobalshortcutsrc --group textract \
+        //                 --key extract_text --delete
         KGlobalAccel::self()->setDefaultShortcut(action, shortcut,
                                                  KGlobalAccel::NoAutoloading);
-        KGlobalAccel::self()->setShortcut(action, shortcut,
-                                          KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(action, shortcut);
 
         auto *tier2Action = new QAction(&app);
         tier2Action->setObjectName(QStringLiteral("extract_text_tier2"));
@@ -171,10 +235,22 @@ int main(int argc, char **argv)
         const QList<QKeySequence> tier2Shortcut{
             QKeySequence(Qt::ShiftModifier | Qt::Key_Calculator)};
 
+        // Same NoAutoloading asymmetry as extract_text above, for the same
+        // reason; the stored-binding remedy there applies here with
+        // --key extract_text_tier2.
         KGlobalAccel::self()->setDefaultShortcut(tier2Action, tier2Shortcut,
                                                  KGlobalAccel::NoAutoloading);
-        KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut,
-                                          KGlobalAccel::NoAutoloading);
+        KGlobalAccel::self()->setShortcut(tier2Action, tier2Shortcut);
+
+        // Live reload. KConfigWatcher signals on an external write, which is
+        // what `textract --configure` performs from a separate process.
+        KConfigWatcher::Ptr watcher = KConfigWatcher::create(config);
+        QObject::connect(watcher.data(), &KConfigWatcher::configChanged,
+                         controller, [config, controller](const KConfigGroup &,
+                                                          const QByteArrayList &) {
+            controller->applySettings(
+                textract::loadSettings(config->group(QString())));
+        });
 
         QTextStream(stdout)
             << "textract daemon ready; Calculator = tier 1, "

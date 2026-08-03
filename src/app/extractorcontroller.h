@@ -11,6 +11,7 @@
 #include <QRect>
 
 #include "app/tier2cache.h"
+#include "config/settings.h"
 #include "ocr/onnxpaddleengine.h"
 #include "ocr/tesseractengine.h"
 #include "preprocess/preprocess.h"
@@ -29,6 +30,10 @@ public:
     /// Loads the OCR language data up front so the hotkey path stays fast.
     /// Tier 2 is deliberately NOT warmed here -- see ensureTier2Engine().
     bool warmUp(const QString &langs);
+
+    /// Applies changed settings to a running daemon. Safe to call with settings
+    /// identical to the current ones -- each case is guarded by a comparison.
+    void applySettings(const Settings &settings);
 
     /// Tier 1: capture, select, recognise with Tesseract, copy.
     void extract();
@@ -57,6 +62,8 @@ private:
     QImage                            m_workspace;
     PreprocessOptions                 m_preprocess{};
     QString                           m_langs{QStringLiteral("eng")};
+    /// Resolved via resolveModelDir(), so TEXTRACT_MODELS still wins.
+    QString                           m_modelDir{OnnxPaddleEngine::defaultModelDir()};
     bool                              m_busy{false};
 
     /// Set while a drag started by extractTier2() is on screen, so the one

@@ -58,6 +58,35 @@ bool ExtractorController::warmUp(const QString &langs)
     return true;
 }
 
+void ExtractorController::applySettings(const Settings &settings)
+{
+    if (settings.langs != m_langs) {
+        const QString previous = m_langs;
+        if (!warmUp(settings.langs)) {
+            // warmUp() has already overwritten m_langs, so put it back and
+            // reload what was working. A typo in a hand-edited config file
+            // must not leave a resident daemon unable to read anything.
+            m_langs = previous;
+            m_engine.initialize(previous);
+            notify(QStringLiteral("Language not available"),
+                   QStringLiteral("No Tesseract data for '%1'; still using '%2'.\n"
+                                  "Install the tesseract-data package for it.")
+                       .arg(settings.langs, previous));
+        }
+    }
+
+    const QString dir = resolveModelDir(settings);
+    if (dir != m_modelDir) {
+        m_modelDir = dir;
+        // Nothing more: ensureTier2Engine() constructs lazily on the next
+        // tier-2 press, so dropping the engine reuses a path that already
+        // exists rather than adding a reload path needing its own error states.
+        m_paddle.reset();
+    }
+
+    m_preprocess = settings.preprocess;
+}
+
 void ExtractorController::extract()
 {
     if (m_busy) {
@@ -219,7 +248,7 @@ void ExtractorController::runTier2(const QImage &crop,
 OnnxPaddleEngine *ExtractorController::ensureTier2Engine(QString *title,
                                                          QString *body)
 {
-    const QString dir = OnnxPaddleEngine::defaultModelDir();
+    const QString dir = m_modelDir;
 
     // The order of these two checks is what keeps the two remedies apart, and
     // getting it backwards reports "not installed" for a corrupt model and

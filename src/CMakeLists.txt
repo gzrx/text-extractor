@@ -16,6 +16,7 @@ set(TEXTRACT_LIB_SOURCES
     assemble/columns.cpp
     order/order.cpp
     correct/dictionary.cpp
+    config/settings.cpp
     clipboard/clipboard.cpp
     app/extraction.cpp
     app/tier2cache.cpp
@@ -41,9 +42,13 @@ target_link_libraries(textract_lib PUBLIC
     Qt6::Core Qt6::Gui Qt6::DBus Qt6::Network LayerShellQt::Interface
     PkgConfig::Tesseract PkgConfig::Leptonica PkgConfig::Hunspell
     PkgConfig::ONNXRuntime
-    KF6::GuiAddons KF6::Notifications)
+    KF6::GuiAddons KF6::Notifications KF6::ConfigCore)
 
-add_executable(textract main.cpp)
+# configdialog.cpp is built into the executable rather than textract_lib on
+# purpose: every test binary links textract_lib, and putting a Qt Widgets
+# dialog there would pull Qt6::Widgets into all of them for code none of them
+# use. It defines no QObject subclass, so it needs no MOC.
+add_executable(textract main.cpp config/configdialog.cpp)
 target_link_libraries(textract PRIVATE
     textract_lib Qt6::Gui Qt6::Widgets KF6::GlobalAccel)
 
