@@ -7,6 +7,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/tesseractengine.cpp
     ocr/paddlewords.cpp
     ocr/paddledet.cpp
+    ocr/paddlerec.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
