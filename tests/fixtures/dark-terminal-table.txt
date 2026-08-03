@@ -1,8 +1,8 @@
-Module        Language   Files   Lines   Tested
-capture       C++            4     612   yes
-overlay       C++            4     488   yes
-preprocess    C++            2     301   yes
-ocr           C++            5     544   yes
-assemble      C++            2     196   yes
-clipboard     C++            2      87   no
-app           C++            4     423   yes
+Module	Language	Files	Lines	Tested
+capture	C++	4	612	yes
+overlay	C++	4	488	yes
+preprocess	C++	2	301	yes
+ocr	C++	5	544	yes
+assemble	C++	2	196	yes
+clipboard	C++	2	87	no
+app	C++	4	423	yes

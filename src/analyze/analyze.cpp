@@ -8,6 +8,8 @@
 
 #include <QRect>
 
+#include "assemble/columns.h"
+
 namespace textract {
 
 namespace {
@@ -46,59 +48,53 @@ constexpr QLatin1StringView kCodePunctuation("{}();");
  */
 constexpr double kCodePunctuationRatio = 0.02;
 
-struct Run {
-    int left;  ///< inclusive, in content-relative pixels
-    int right; ///< inclusive
+/**
+ * Column gaps needed before a region reads as a table.
+ *
+ * Two, because one is a column boundary and none is a paragraph. The corpus
+ * separates cleanly at that line: both table fixtures show four full-height
+ * gaps and nothing else shows more than one.
+ */
+constexpr size_t kMinTableGaps = 2;
 
-    int width() const { return right - left + 1; }
-};
+/// Rows needed before "full height" means anything. Any two short lines leave
+/// bands that no word happens to cross.
+constexpr size_t kMinTableRows = 3;
 
-QRect contentRect(const std::vector<Word> &words)
+/// Distinct text lines in the word stream.
+size_t countLines(const std::vector<Word> &words)
 {
-    QRect content;
+    size_t lines = 0;
+    int previousLine = -1;
+    int previousBlock = -1;
     for (const Word &word : words) {
-        content = content.united(word.bbox);
+        if (word.line != previousLine || word.block != previousBlock) {
+            ++lines;
+        }
+        previousLine = word.line;
+        previousBlock = word.block;
     }
-    return content;
+    return lines;
 }
 
-/**
- * Maximal runs of x with no word over them.
- *
- * Column occupancy rather than a per-line scan on purpose: a run that survives
- * here is one that *no* word crosses at *any* height, which is what "full
- * height gutter" means. Testing lines individually would need a separate
- * height check and would be fooled by a short paragraph.
- */
-std::vector<Run> whitespaceRuns(const std::vector<Word> &words,
-                                const QRect &content)
+/// Several full-height gaps over enough rows: cells, not paragraphs.
+std::optional<LayoutClass> detectTable(const std::vector<Word> &words)
 {
-    std::vector<bool> occupied(size_t(content.width()), false);
-    for (const Word &word : words) {
-        const int from = std::max(0, word.bbox.left() - content.left());
-        const int to = std::min(content.width() - 1,
-                                word.bbox.right() - content.left());
-        for (int x = from; x <= to; ++x) {
-            occupied[size_t(x)] = true;
-        }
+    if (countLines(words) < kMinTableRows) {
+        return std::nullopt;
     }
 
-    std::vector<Run> runs;
-    int start = -1;
-    for (int x = 0; x < content.width(); ++x) {
-        if (!occupied[size_t(x)]) {
-            if (start < 0) {
-                start = x;
-            }
-        } else if (start >= 0) {
-            runs.push_back({start, x - 1});
-            start = -1;
-        }
+    const size_t gaps = columnGaps(words).size();
+    if (gaps < kMinTableGaps) {
+        return std::nullopt;
     }
-    // A trailing run cannot exist: content is the union of the boxes, so its
-    // last column is occupied by definition.
 
-    return runs;
+    LayoutClass result;
+    result.kind = LayoutKind::Table;
+    // Margin over the threshold, saturating at twice it.
+    result.confidence = float(std::min(1.0, double(gaps)
+                                                / (2.0 * double(kMinTableGaps))));
+    return result;
 }
 
 /// Share of all recognised characters that is structural punctuation.
@@ -136,10 +132,10 @@ std::optional<LayoutClass> detectTwoColumns(const std::vector<Word> &words)
 
     const int minGutter = std::max(1, int(content.width() * kMinGutterFraction));
 
-    std::vector<Run> gutters;
-    for (const Run &run : whitespaceRuns(words, content)) {
-        if (run.width() >= minGutter) {
-            gutters.push_back(run);
+    std::vector<Gap> gutters;
+    for (const Gap &gap : verticalGaps(words, content)) {
+        if (gap.width() >= minGutter) {
+            gutters.push_back(gap);
         }
     }
 
@@ -150,8 +146,8 @@ std::optional<LayoutClass> detectTwoColumns(const std::vector<Word> &words)
         return std::nullopt;
     }
 
-    const int boundaryLeft = content.left() + gutters.front().left;
-    const int boundaryRight = content.left() + gutters.front().right;
+    const int boundaryLeft = gutters.front().left;
+    const int boundaryRight = gutters.front().right;
 
     size_t before = 0;
     size_t after = 0;
@@ -191,6 +187,12 @@ LayoutClass classify(const std::vector<Word> &words, const QImage &image)
     // Getting it wrong costs more than any assembly choice can.
     if (const auto columns = detectTwoColumns(words)) {
         return *columns;
+    }
+
+    // Mutually exclusive with the column test by construction: that one wants
+    // exactly one gap, this one wants several.
+    if (const auto table = detectTable(words)) {
+        return *table;
     }
 
     if (const double ratio = codePunctuationRatio(words);

@@ -7,6 +7,8 @@
 
 #include <QStringList>
 
+#include "assemble/columns.h"
+
 namespace textract {
 
 namespace {
@@ -108,30 +110,6 @@ QString assembleRaw(const std::vector<Word> &words)
     return out;
 }
 
-double median(std::vector<double> values)
-{
-    if (values.empty()) {
-        return 0.0;
-    }
-    const size_t middle = values.size() / 2;
-    std::nth_element(values.begin(), values.begin() + long(middle), values.end());
-    return values[middle];
-}
-
-/// Median width of one character, in pixels. Monospaced text makes this exact;
-/// on a proportional face it is still the best available ruler.
-double characterWidth(const std::vector<Word> &words)
-{
-    std::vector<double> advances;
-    for (const Word &word : words) {
-        if (!word.text.isEmpty() && word.bbox.width() > 0) {
-            advances.push_back(double(word.bbox.width())
-                               / double(word.text.size()));
-        }
-    }
-    return median(std::move(advances));
-}
-
 int lineTop(const Line &line)
 {
     int top = line.words.front()->bbox.top();
@@ -151,7 +129,60 @@ double linePitch(const std::vector<Line> &lines)
             gaps.push_back(gap);
         }
     }
-    return median(std::move(gaps));
+    if (gaps.empty()) {
+        return 0.0;
+    }
+    const size_t middle = gaps.size() / 2;
+    std::nth_element(gaps.begin(), gaps.begin() + long(middle), gaps.end());
+    return gaps[middle];
+}
+
+/**
+ * Rows of tab-separated cells.
+ *
+ * Tabs rather than the on-screen padding, and rather than Markdown: a captured
+ * table is nearly always on its way into a spreadsheet, where tab-separated
+ * values land as real cells. Re-emitting the padding would produce one text
+ * cell per row, and Markdown would need escaping rules for content the user
+ * cannot see or correct.
+ *
+ * Columns come from whitespace bands that run the full height of the region,
+ * so a gap inside one cell — a two-word heading — does not split it.
+ */
+QString assembleTable(const std::vector<Word> &words)
+{
+    const std::vector<Line> lines = groupIntoLines(words);
+    if (lines.empty()) {
+        return QString();
+    }
+
+    std::vector<int> boundaries;
+    for (const Gap &gap : columnGaps(words)) {
+        boundaries.push_back(gap.centre());
+    }
+
+    QStringList rows;
+    for (const Line &line : lines) {
+        std::vector<QString> cells(boundaries.size() + 1);
+        for (const Word *word : line.words) {
+            // By centre, not by left edge: a column of right-aligned numerics
+            // starts at a different x on every row.
+            const int centre = word->bbox.center().x();
+            size_t column = 0;
+            while (column < boundaries.size() && centre > boundaries[column]) {
+                ++column;
+            }
+            appendWord(cells[column], word->text);
+        }
+
+        while (cells.size() > 1 && cells.back().isEmpty()) {
+            cells.pop_back();
+        }
+        rows << QStringList(cells.cbegin(), cells.cend())
+                    .join(QLatin1Char('\t'));
+    }
+
+    return rows.join(QLatin1Char('\n'));
 }
 
 /// A vertical gap this much larger than the usual pitch means blank lines.
@@ -277,8 +308,9 @@ QString assemble(const std::vector<Word> &words, LayoutKind kind)
         return assembleCode(words);
     case LayoutKind::Prose:
         return assembleProse(words);
-    case LayoutKind::Raw:
     case LayoutKind::Table:
+        return assembleTable(words);
+    case LayoutKind::Raw:
         return assembleRaw(words);
     }
     return QString();

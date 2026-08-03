@@ -24,8 +24,8 @@
             "expected": "dark-terminal-table.txt",
             "langs": "eng",
             "layout": "table",
-            "minScore": 0.48,
-            "notes": "Monospaced whitespace-aligned table. Expected text is space-joined; the M4 Table branch will change that form."
+            "minScore": 0.98,
+            "notes": "Monospaced whitespace-aligned table. Expected text is tab-separated: the Table branch emits TSV so a captured table pastes into a spreadsheet as real cells."
         },
         {
             "name": "dark-terminal-malay",
@@ -70,7 +70,7 @@
             "langs": "eng",
             "layout": "table",
             "minScore": 0.98,
-            "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics."
+            "notes": "LibreOffice Calc cells with gridlines and right-aligned numerics, expected as TSV. Its column gaps are only 3-12px because left-aligned headers nearly touch right-aligned numerics, which is why column detection keys on full height rather than gap width."
         },
         {
             "name": "pdf-two-column",

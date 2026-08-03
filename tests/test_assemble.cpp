@@ -32,6 +32,22 @@ void appendLine(std::vector<textract::Word> &words, const QString &text,
     }
 }
 
+/// One table row. Each cell starts at a fixed 200px pitch, so the gaps between
+/// them run the full height of the region whatever the cells contain.
+void appendCells(std::vector<textract::Word> &words, const QStringList &cells,
+                 int line)
+{
+    for (int column = 0; column < cells.size(); ++column) {
+        int cursor = column * 200;
+        for (const QString &token : cells.at(column).split(QLatin1Char(' '),
+                                                           Qt::SkipEmptyParts)) {
+            textract::Word word = makeWord(token, cursor, line);
+            words.push_back(word);
+            cursor += 10 * token.size() + 10;
+        }
+    }
+}
+
 } // namespace
 
 class TestAssemble : public QObject
@@ -122,6 +138,54 @@ private Q_SLOTS:
 
         QCOMPARE(textract::assemble(words, textract::LayoutKind::Raw),
                  QStringLiteral("使用 OCR 技术"));
+    }
+
+    // --- Table -------------------------------------------------------------
+
+    /// Tabs, not aligned padding. A captured table is nearly always on its way
+    /// into a spreadsheet, and tab-separated values paste there as real cells;
+    /// re-emitting the on-screen padding produces one text cell per row.
+    void separatesTableCellsWithTabs()
+    {
+        std::vector<textract::Word> words;
+        appendCells(words, {QStringLiteral("Module"), QStringLiteral("Files"),
+                            QStringLiteral("Tested")}, 1);
+        appendCells(words, {QStringLiteral("capture"), QStringLiteral("4"),
+                            QStringLiteral("yes")}, 2);
+        appendCells(words, {QStringLiteral("overlay"), QStringLiteral("12"),
+                            QStringLiteral("no")}, 3);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Table),
+                 QStringLiteral("Module\tFiles\tTested\n"
+                                "capture\t4\tyes\n"
+                                "overlay\t12\tno"));
+    }
+
+    /// A cell holding two words is one cell, not two. Only a gap that runs the
+    /// full height of the region separates columns.
+    void keepsAMultiWordCellTogether()
+    {
+        std::vector<textract::Word> words;
+        appendCells(words, {QStringLiteral("Module name"), QStringLiteral("Files")}, 1);
+        appendCells(words, {QStringLiteral("capture lib"), QStringLiteral("4")}, 2);
+        appendCells(words, {QStringLiteral("overlay lib"), QStringLiteral("12")}, 3);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Table),
+                 QStringLiteral("Module name\tFiles\n"
+                                "capture lib\t4\n"
+                                "overlay lib\t12"));
+    }
+
+    /// Text with no column structure has one cell per row, which is the same
+    /// thing Raw would have said. Table must not invent columns.
+    void emitsOneCellPerRowWhenThereAreNoColumns()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("just a sentence"), 0, 1);
+        appendLine(words, QStringLiteral("and another one"), 0, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Table),
+                 QStringLiteral("just a sentence\nand another one"));
     }
 
     // --- Code --------------------------------------------------------------

@@ -7,6 +7,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/tesseractengine.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
+    assemble/columns.cpp
     clipboard/clipboard.cpp
     app/extraction.cpp
     app/extractorcontroller.cpp

@@ -149,15 +149,39 @@ private Q_SLOTS:
         QVERIFY(result.confidence > 0.5f);
     }
 
-    /// A table has full-height gutters too, and misreading it as two columns
-    /// would emit it column by column — the exact defect this module exists to
-    /// prevent. Several gutters mean cells, not columns of prose.
-    void doesNotMistakeTableGuttersForColumns()
+    /// Several full-height gaps mean cells. One means a column boundary.
+    /// Reading a table as two columns of prose would emit it column by column,
+    /// which is the exact defect this module exists to prevent, so the two
+    /// tests are mutually exclusive by construction.
+    ///
+    /// The corpus separates as sharply: both table fixtures show four gaps and
+    /// nothing else shows more than one.
+    void classifiesSeveralFullHeightGapsAsTable()
     {
         const auto result = textract::classify(grid({0, 300, 600, 900}, 100, 12),
                                                QImage());
 
-        QVERIFY(result.kind != textract::LayoutKind::Prose);
+        QCOMPARE(result.kind, textract::LayoutKind::Table);
+        QVERIFY(result.confidence > 0.0f);
+    }
+
+    /// A single gap is not a table. It is either a column boundary or nothing.
+    void doesNotCallOneGapATable()
+    {
+        std::vector<int> lefts = columnStarts(0, 540, 60);
+        const std::vector<int> right = columnStarts(700, 1240, 60);
+        lefts.insert(lefts.end(), right.begin(), right.end());
+
+        QVERIFY(textract::classify(grid(lefts, 50, 12), QImage()).kind
+                != textract::LayoutKind::Table);
+    }
+
+    /// Two rows are not enough for "full height" to mean anything: any pair of
+    /// short lines leaves gaps that no word happens to cross.
+    void needsEnoughRowsBeforeTrustingAGap()
+    {
+        QVERIFY(textract::classify(grid({0, 300, 600, 900}, 100, 2), QImage()).kind
+                != textract::LayoutKind::Table);
     }
 
     /// A gutter with almost nothing on one side is a stray margin note or a
