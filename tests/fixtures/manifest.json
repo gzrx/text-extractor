@@ -89,6 +89,16 @@
       "minScore": 0.997,
       "minScoreTier2": 0.76,
       "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. M5's dictionary check fixed the \"bleed-through\" reglue, worth 0.0012. The remaining error is not correction's: the paragraph that runs across the column boundary is split, because Tesseract numbers the two halves as different blocks and the Prose branch honours block breaks as paragraph breaks. Tier 2 scores 0.7689 against tier 1's 0.9975. order/ reads the columns correctly, but DB emits ONE detection box spanning both columns for the top line, so that line's two halves interleave. Tesseract's own layout analysis handles this fixture better; tier 2 is not the tool for two-column PDFs."
+    },
+    {
+      "name": "dark-two-column-prose",
+      "image": "dark-two-column-prose.png",
+      "expected": "dark-two-column-prose.txt",
+      "langs": "eng",
+      "layout": "prose",
+      "minScore": 0.998,
+      "minScoreTier2": 0.998,
+      "notes": "7pt light-on-dark English prose in two columns, staged as HTML in DejaVu Serif and captured at 1.25 display scale. Two-column deliberately: correct() runs only on Prose, and classify() returns Prose only from detectTwoColumns(), so a single-column prose fixture would exercise M5's confusion set in the pinned run alone and never in the daemon. This one classifies prose at 0.99. Content is natural but chosen dense in the confusable letterforms (m/rn, cl/d, l/I/1, S/5, O/0). Paragraph breaks land at the column boundary on purpose, so that the known cross-column paragraph split does not contaminate a fixture built to measure correction; that defect keeps its own fixture in pdf-two-column. Both tiers score 0.9987, and the entire error is two lowercase l read as digit 1 - the l/1 confusion pair exactly. correct() declines both because a one-character core is below kMinCoreLength, which is the right call here: the same sentence goes on to say \"from the digit one\". Note tier 2 does NOT show the spanning-box defect it shows on pdf-two-column, so a wide clean gutter with no full-width line above it is within DB's reach."
     }
   ]
 }

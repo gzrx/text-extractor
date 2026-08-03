@@ -92,6 +92,7 @@ A fixture whose `langs` are not installed is skipped, not failed.
 - [x] tables and spreadsheet regions — `dark-terminal-table`, `spreadsheet-table`
 - [x] small-font UI text at 1.25 scale — `small-ui-text`
 - [x] light-background prose — `light-prose`
+- [x] small dark two-column prose — `dark-two-column-prose`
 
 ## Before committing a fixture
 
