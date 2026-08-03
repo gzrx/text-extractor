@@ -15,9 +15,10 @@ namespace textract {
  * Hunspell-backed word lookup.
  *
  * A missing dictionary disables the lookup rather than failing construction:
- * post-correction is an improvement on the extracted text, never a
- * precondition for producing it, and the tool has to keep working on a machine
- * that has no langdata for the language in front of it.
+ * the one thing it decides — whether a hyphen at a line end was typesetting or
+ * content — is an improvement on the extracted text, never a precondition for
+ * producing it, and the tool has to keep working on a machine that has no
+ * langdata for the language in front of it.
  *
  * `contains()` therefore answers false in both directions when unavailable —
  * "not a word" and "no opinion" are the same answer here only because every
