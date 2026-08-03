@@ -41,7 +41,8 @@ public:
     }
 
 Q_SIGNALS:
-    void regionChosen(const QRect &physicalRect);
+    void regionChosen(const QRect &physicalRect,
+                      Qt::KeyboardModifiers modifiers);
     void aborted();
 
 protected:
@@ -73,6 +74,7 @@ protected:
             m_origin = event->position().toPoint();
             m_dragging = true;
             m_selection = QRect(m_origin, QSize());
+            m_modifiers = event->modifiers();
             update();
         }
     }
@@ -81,6 +83,9 @@ protected:
     {
         if (m_dragging) {
             m_selection = QRect(m_origin, event->position().toPoint()).normalized();
+            // Accumulated across the whole drag, so "held Shift while dragging"
+            // works whether the user pressed it before starting or part way in.
+            m_modifiers |= event->modifiers();
             update();
         }
     }
@@ -91,11 +96,12 @@ protected:
             return;
         }
         m_dragging = false;
+        m_modifiers |= event->modifiers();
 
         const QRect physical = mapSelection(m_selection);
 
         if (textract::isSelectionUsable(physical)) {
-            Q_EMIT regionChosen(physical);
+            Q_EMIT regionChosen(physical, m_modifiers);
         } else {
             Q_EMIT aborted();
         }
@@ -142,6 +148,7 @@ private:
     QPoint m_origin;
     QRect  m_selection;
     bool   m_dragging{false};
+    Qt::KeyboardModifiers m_modifiers{Qt::NoModifier};
 };
 
 namespace textract {
@@ -170,14 +177,15 @@ void SelectionOverlay::start(const QImage &workspace)
         connect(window, &OverlayWindow::regionChosen, this,
                 &SelectionOverlay::finishWith);
         connect(window, &OverlayWindow::aborted, this, [this] {
-            finishWith(QRect());
+            finishWith(QRect(), Qt::NoModifier);
         });
         window->show();
         m_windows.append(window);
     }
 }
 
-void SelectionOverlay::finishWith(const QRect &physicalRect)
+void SelectionOverlay::finishWith(const QRect &physicalRect,
+                                  Qt::KeyboardModifiers modifiers)
 {
     if (m_finished) {
         return; // another screen's window already resolved this session
@@ -188,7 +196,7 @@ void SelectionOverlay::finishWith(const QRect &physicalRect)
     if (physicalRect.isNull()) {
         Q_EMIT cancelled();
     } else {
-        Q_EMIT selected(physicalRect);
+        Q_EMIT selected(physicalRect, modifiers);
     }
 }
 

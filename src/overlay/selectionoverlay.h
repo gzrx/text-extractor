@@ -27,11 +27,13 @@ public:
     void start(const QImage &workspace);
 
 Q_SIGNALS:
-    void selected(const QRect &physicalRect);
+    /// `modifiers` are those held at any point during the drag, so the caller
+    /// can honour an override such as Shift for forced Raw.
+    void selected(const QRect &physicalRect, Qt::KeyboardModifiers modifiers);
     void cancelled();
 
 private:
-    void finishWith(const QRect &physicalRect);
+    void finishWith(const QRect &physicalRect, Qt::KeyboardModifiers modifiers);
     void tearDown();
 
     QImage m_workspace;

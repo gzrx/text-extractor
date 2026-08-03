@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include <QImage>
+#include <Qt>
 
 #include "assemble/assemble.h"
 #include "ocr/ocrengine.h"
@@ -45,5 +47,14 @@ LayoutClass classify(const std::vector<Word> &words, const QImage &image);
  * and emits the region block by block instead of line by line.
  */
 Segmentation segmentationFor(LayoutKind kind);
+
+/**
+ * The layout the user demanded with modifier keys, if any.
+ *
+ * Holding Shift through the drag forces Raw. Every heuristic in this module
+ * is wrong sometimes, and when one is, the user should be able to take it back
+ * on the next attempt rather than go looking for a setting.
+ */
+std::optional<LayoutKind> forcedLayoutFor(Qt::KeyboardModifiers modifiers);
 
 } // namespace textract

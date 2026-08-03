@@ -3,6 +3,7 @@
 
 #include "app/extractorcontroller.h"
 
+#include "analyze/analyze.h"
 #include "app/extraction.h"
 
 #include "capture/kwincapture.h"
@@ -60,17 +61,22 @@ void ExtractorController::extract()
     m_overlay->start(m_workspace);
 }
 
-void ExtractorController::onSelected(const QRect &physicalRect)
+void ExtractorController::onSelected(const QRect &physicalRect,
+                                     Qt::KeyboardModifiers modifiers)
 {
     m_busy = false;
 
     const QImage crop = m_workspace.copy(physicalRect);
     m_workspace = QImage();
 
-    // No forced kind: extractText() classifies. The classifier lives behind
-    // that seam, not here, so the fixture harness scores the same path.
+    // Normally no forced kind: extractText() classifies, behind the seam the
+    // fixture harness also runs, so what is measured is what the daemon does.
+    // Shift held during the drag overrides it — every heuristic is wrong
+    // sometimes, and the user should be able to take it back on the next
+    // attempt rather than go looking for a setting.
     const Extraction result = extractText(m_engine, crop, m_langs,
-                                          std::nullopt, m_preprocess);
+                                          forcedLayoutFor(modifiers),
+                                          m_preprocess);
 
     if (result.isEmpty() || result.text.isEmpty()) {
         // Clipboard deliberately left untouched.

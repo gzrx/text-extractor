@@ -28,7 +28,8 @@ public:
     void extract();
 
 private:
-    void onSelected(const QRect &physicalRect);
+    void onSelected(const QRect &physicalRect,
+                    Qt::KeyboardModifiers modifiers);
     void notify(const QString &title, const QString &body);
 
     TesseractEngine   m_engine;

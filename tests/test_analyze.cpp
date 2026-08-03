@@ -204,6 +204,28 @@ private Q_SLOTS:
         QCOMPARE(result.kind, textract::LayoutKind::Raw);
     }
 
+    /// Holding Shift through the drag forces Raw, so a misclassification is
+    /// always recoverable on the spot rather than through a config change.
+    void treatsShiftDuringTheDragAsForcedRaw()
+    {
+        QCOMPARE(textract::forcedLayoutFor(Qt::ShiftModifier),
+                 std::optional<textract::LayoutKind>(textract::LayoutKind::Raw));
+    }
+
+    /// Shift alongside another modifier still means Raw: the user held it.
+    void acceptsShiftCombinedWithOtherModifiers()
+    {
+        QCOMPARE(textract::forcedLayoutFor(Qt::ShiftModifier | Qt::ControlModifier),
+                 std::optional<textract::LayoutKind>(textract::LayoutKind::Raw));
+    }
+
+    /// Anything else leaves the decision to classify().
+    void forcesNothingWithoutShift()
+    {
+        QVERIFY(!textract::forcedLayoutFor(Qt::NoModifier).has_value());
+        QVERIFY(!textract::forcedLayoutFor(Qt::ControlModifier).has_value());
+    }
+
     /// Prose is the only kind that may be genuinely multi-column, so it is the
     /// only one that gets full page layout analysis.
     void asksForFullLayoutAnalysisOnlyForProse()

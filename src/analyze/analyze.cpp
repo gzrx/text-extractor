@@ -209,6 +209,14 @@ LayoutClass classify(const std::vector<Word> &words, const QImage &image)
     return {};
 }
 
+std::optional<LayoutKind> forcedLayoutFor(Qt::KeyboardModifiers modifiers)
+{
+    if (modifiers.testFlag(Qt::ShiftModifier)) {
+        return LayoutKind::Raw;
+    }
+    return std::nullopt;
+}
+
 Segmentation segmentationFor(LayoutKind kind)
 {
     switch (kind) {
