@@ -107,6 +107,103 @@ private Q_SLOTS:
         textract::orderWords(words, textract::LayoutKind::Raw);
         QVERIFY(words.empty());
     }
+
+    /// A vertical gap much larger than the line pitch is a paragraph break.
+    /// assembleProse() turns a block change into a paragraph, and assembleRaw()
+    /// into a blank line, so this is what recovers both.
+    void startsANewBlockAcrossALargeVerticalGap()
+    {
+        std::vector<textract::Word> words{
+            makeWord(QStringLiteral("a"), 10, 0, 20, 16, 0),
+            makeWord(QStringLiteral("b"), 10, 20, 20, 16, 1),
+            makeWord(QStringLiteral("c"), 10, 40, 20, 16, 2),
+            // Three line pitches down: a paragraph break.
+            makeWord(QStringLiteral("d"), 10, 120, 20, 16, 3),
+        };
+
+        textract::orderWords(words, textract::LayoutKind::Prose);
+
+        QCOMPARE(words[0].block, words[1].block);
+        QCOMPARE(words[1].block, words[2].block);
+        QVERIFY(words[3].block > words[2].block);
+    }
+
+    /// Evenly-spaced lines are one block. A false paragraph break in the middle
+    /// of a paragraph is as damaging as a missing one.
+    void keepsEvenlySpacedLinesInOneBlock()
+    {
+        std::vector<textract::Word> words;
+        for (int i = 0; i < 6; ++i) {
+            words.push_back(makeWord(QStringLiteral("line"), 10, i * 20, 40, 16, i));
+        }
+
+        textract::orderWords(words, textract::LayoutKind::Prose);
+
+        for (const textract::Word &word : words) {
+            QCOMPARE(word.block, words.front().block);
+        }
+    }
+
+    /// Two prose columns: the whole left column is read before the right one.
+    ///
+    /// Note the left and right lines share a y range, which is the normal case
+    /// on a two-column page and the trap in this module: if merging runs before
+    /// the column split, every L fuses to its R and the split finds nothing.
+    /// This test fails outright under that ordering.
+    void readsProseColumnsLeftColumnFirst()
+    {
+        std::vector<textract::Word> words;
+        int id = 0;
+        for (int i = 0; i < 5; ++i) {
+            words.push_back(makeWord(QStringLiteral("L"), 10, i * 20, 60, 16, id++));
+            words.push_back(makeWord(QStringLiteral("R"), 200, i * 20, 60, 16, id++));
+        }
+
+        textract::orderWords(words, textract::LayoutKind::Prose);
+
+        // Five L then five R, not L R L R interleaved by row.
+        for (int i = 0; i < 5; ++i) {
+            QCOMPARE(words[size_t(i)].text, QStringLiteral("L"));
+        }
+        for (int i = 5; i < 10; ++i) {
+            QCOMPARE(words[size_t(i)].text, QStringLiteral("R"));
+        }
+    }
+
+    /// The same geometry classified as a Table must stay row-major. Splitting
+    /// on a table's inter-cell gap is what dropped spreadsheet-table from
+    /// 1.0000 to 0.4348 during the M6 probe.
+    void neverSplitsATableIntoColumns()
+    {
+        std::vector<textract::Word> words;
+        int id = 0;
+        for (int i = 0; i < 5; ++i) {
+            words.push_back(makeWord(QStringLiteral("L"), 10, i * 20, 60, 16, id++));
+            words.push_back(makeWord(QStringLiteral("R"), 200, i * 20, 60, 16, id++));
+        }
+
+        textract::orderWords(words, textract::LayoutKind::Table);
+
+        QCOMPARE(words[0].text, QStringLiteral("L"));
+        QCOMPARE(words[1].text, QStringLiteral("R"));
+        QCOMPARE(words[0].line, words[1].line);
+    }
+
+    /// Code is single-column too: indentation depends on x-offsets within one
+    /// coordinate origin, and a column split would rebase half the file.
+    void neverSplitsCodeIntoColumns()
+    {
+        std::vector<textract::Word> words;
+        int id = 0;
+        for (int i = 0; i < 5; ++i) {
+            words.push_back(makeWord(QStringLiteral("L"), 10, i * 20, 60, 16, id++));
+            words.push_back(makeWord(QStringLiteral("R"), 200, i * 20, 60, 16, id++));
+        }
+
+        textract::orderWords(words, textract::LayoutKind::Code);
+
+        QCOMPARE(words[0].line, words[1].line);
+    }
 };
 
 QTEST_MAIN(TestOrder)

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <map>
 
+#include "assemble/columns.h"
+
 namespace textract {
 
 namespace {
@@ -19,6 +21,13 @@ namespace {
 /// and the fragment would be stranded on a line of its own, which is exactly
 /// the interleaving that costs dark-terminal-buildlog its score.
 constexpr double kLineOverlapRatio = 0.4;
+
+/// A vertical gap larger than this many median line pitches starts a new block.
+///
+/// Set from the corpus. Sweep it separately from kLineOverlapRatio: merging
+/// changes the line pitch this measures against, so tuning both at once
+/// measures neither.
+constexpr double kBlockGapRatio = 1.6;
 
 /// One visual line: the words on it and the union of their boxes.
 struct Line {
@@ -82,36 +91,130 @@ std::vector<Line> mergeSharedLines(std::vector<Line> lines)
     return merged;
 }
 
+/// The typical line-to-line step, as a median of the gaps between successive
+/// line tops. A median rather than a mean because one paragraph break would
+/// drag a mean up and then mask every other break.
+double medianLinePitch(const std::vector<Line> &lines)
+{
+    if (lines.size() < 2) {
+        return 0.0;
+    }
+    std::vector<double> pitches;
+    pitches.reserve(lines.size() - 1);
+    for (size_t i = 1; i < lines.size(); ++i) {
+        pitches.push_back(double(lines[i].top() - lines[i - 1].top()));
+    }
+    const size_t middle = pitches.size() / 2;
+    std::nth_element(pitches.begin(), pitches.begin() + long(middle),
+                     pitches.end());
+    return pitches[middle];
+}
+
+/// Words of every line in `lines`, flattened, for the column geometry helpers
+/// that take a word vector.
+std::vector<Word> wordsOf(const std::vector<Line> &lines)
+{
+    std::vector<Word> out;
+    for (const Line &line : lines) {
+        for (const Word *word : line.words) {
+            out.push_back(*word);
+        }
+    }
+    return out;
+}
+
+/// Splits `lines` into two columns at a single prose gutter, or returns one
+/// column when there is no such gutter.
+///
+/// Exactly one qualifying gap is required. Two or more is a table, which
+/// classify() would not have called Prose, and zero is ordinary single-column
+/// prose. Both fall through to one column.
+std::vector<std::vector<Line>> splitIntoColumns(std::vector<Line> lines)
+{
+    const std::vector<Gap> gaps = columnGaps(wordsOf(lines));
+    if (gaps.size() != 1) {
+        return {std::move(lines)};
+    }
+
+    const int split = gaps.front().centre();
+    std::vector<Line> left;
+    std::vector<Line> right;
+    for (Line &line : lines) {
+        if (line.bounds.center().x() < split) {
+            left.push_back(std::move(line));
+        } else {
+            right.push_back(std::move(line));
+        }
+    }
+    if (left.empty() || right.empty()) {
+        std::vector<Line> all;
+        for (Line &line : left) {
+            all.push_back(std::move(line));
+        }
+        for (Line &line : right) {
+            all.push_back(std::move(line));
+        }
+        return {std::move(all)};
+    }
+    return {std::move(left), std::move(right)};
+}
+
 } // namespace
 
 void orderWords(std::vector<Word> &words, LayoutKind kind)
 {
-    Q_UNUSED(kind); // Task 2 uses it for the Prose column split.
-
     if (words.empty()) {
         return;
     }
 
     std::vector<Line> lines = groupBySourceLine(words);
-    std::sort(lines.begin(), lines.end(),
-              [](const Line &a, const Line &b) { return a.top() < b.top(); });
-    lines = mergeSharedLines(std::move(lines));
+
+    // Split BEFORE merging. Lines in the left and right columns of a
+    // two-column page share a y range, so merging first would fuse them across
+    // the gutter and leave nothing to split.
+    //
+    // Only Prose may be genuinely multi-column. Table, Code and Raw are all
+    // single-origin: a table's inter-cell gap runs the full height exactly like
+    // a prose gutter, and splitting on it reads the table column-major.
+    std::vector<std::vector<Line>> columns =
+        kind == LayoutKind::Prose ? splitIntoColumns(std::move(lines))
+                                  : std::vector<std::vector<Line>>{std::move(lines)};
 
     std::vector<Word> ordered;
     ordered.reserve(words.size());
     int lineIndex = 0;
-    for (Line &line : lines) {
-        std::sort(line.words.begin(), line.words.end(),
-                  [](const Word *a, const Word *b) {
-                      return a->bbox.left() < b->bbox.left();
-                  });
-        for (Word *word : line.words) {
-            Word copy = *word;
-            copy.line = lineIndex;
-            copy.block = 0;
-            ordered.push_back(std::move(copy));
+    int blockIndex = 0;
+
+    for (std::vector<Line> &column : columns) {
+        std::sort(column.begin(), column.end(),
+                  [](const Line &a, const Line &b) { return a.top() < b.top(); });
+        column = mergeSharedLines(std::move(column));
+
+        const double pitch = medianLinePitch(column);
+        for (size_t i = 0; i < column.size(); ++i) {
+            Line &line = column[i];
+            if (i > 0 && pitch > 0.0) {
+                const double gap = double(line.top() - column[i - 1].top());
+                if (gap > kBlockGapRatio * pitch) {
+                    ++blockIndex;
+                }
+            }
+
+            std::sort(line.words.begin(), line.words.end(),
+                      [](const Word *a, const Word *b) {
+                          return a->bbox.left() < b->bbox.left();
+                      });
+            for (Word *word : line.words) {
+                Word copy = *word;
+                copy.line = lineIndex;
+                copy.block = blockIndex;
+                ordered.push_back(std::move(copy));
+            }
+            ++lineIndex;
         }
-        ++lineIndex;
+        // A column boundary is always a block boundary: the last paragraph of
+        // one column and the first of the next are not the same paragraph.
+        ++blockIndex;
     }
 
     words = std::move(ordered);
