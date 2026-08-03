@@ -68,10 +68,42 @@ ctest --test-dir build --output-on-failure
 
 ```bash
 sudo cmake --install build
-kbuildsycoca6
 ```
 
-That `kbuildsycoca6` is **not optional** — see below.
+That installs three files: the binary, a desktop entry, and a systemd user
+unit, all naming the same absolute path. Start it at login with:
+
+```bash
+systemctl --user enable --now textract
+```
+
+If a capture fails with `NoAuthorized` immediately after installing, run
+`kbuildsycoca6` — KDE resolves desktop entries through ksycoca, and it is a
+per-user cache that a system-wide install cannot refresh for you.
+
+Startup failures go to the journal, not to a notification:
+
+```bash
+journalctl --user -u textract
+```
+
+### Installing to a home prefix
+
+`cmake --install` puts the unit under `${CMAKE_INSTALL_LIBDIR}/systemd/user`.
+With `-DCMAKE_INSTALL_PREFIX=$HOME/.local` that is `~/.local/lib/systemd/user`,
+which **systemd does not search**. Link it into a directory that is:
+
+```bash
+mkdir -p ~/.local/share/systemd/user
+ln -sf ~/.local/lib/systemd/user/textract.service ~/.local/share/systemd/user/
+systemctl --user daemon-reload
+```
+
+### Arch
+
+```bash
+cd packaging && makepkg -si
+```
 
 ### Running from the build tree
 
@@ -114,12 +146,8 @@ everywhere. Tier 2 is decisively better on CJK and on code, and Tesseract is
 still better on small monospace terminal text. Tier 2 also needs no language
 setting: it carries one fixed 18708-character set.
 
-Run it at login with the provided unit:
-
-```bash
-cp data/textract.service ~/.config/systemd/user/
-systemctl --user enable --now textract
-```
+Run it at login with `systemctl --user enable --now textract` — see
+[Install](#install).
 
 Two diagnostic modes are also available:
 
