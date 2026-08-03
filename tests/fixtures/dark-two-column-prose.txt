@@ -1,0 +1,11 @@
+Modern desktop interfaces illuminate their text on dark backgrounds far more often than they once did. A dark window with light lettering is now the ordinary case rather than the odd one, and it inverts the assumption almost every recognition model was trained under.
+
+Small sizes compound the difficulty. At seven points a lowercase m is drawn in a handful of pixels, and the middle stem it needs to be distinguished from an r followed by an n is exactly the detail that antialiasing dissolves first.
+
+The same collapse claims other pairs. A solid l becomes indistinguishable from a capital I or from the digit one, and a rounded d can dissolve into a c and an l standing side by side. Each of these is a single hairline of difference.
+
+A dictionary is the cheapest instrument that can hold an opinion about which reading was intended. It cannot decide anything on its own, but it can tell a plausible word from an implausible one, and that is usually all the additional evidence a correction stage needs.
+
+The rule this imposes is a modest one. Only consider a substitution when the engine itself reported low confidence, and only accept it when the result is a word the dictionary already knows. Nothing else is licensed.
+
+Command output, source listings and column aligned tables all fail these conditions immediately, and so they are left alone. The correction stage is deliberately confined to running prose, where the assumption that every token should be a dictionary word is the only place it holds.
