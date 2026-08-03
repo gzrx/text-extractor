@@ -10,6 +10,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/paddlerec.cpp
     ocr/onnxpaddleengine.cpp
     models/modelspec.cpp
+    models/fetch.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
@@ -38,7 +39,7 @@ set_source_files_properties(ocr/onnxpaddleengine.cpp
 set_target_properties(textract_lib PROPERTIES AUTOMOC ON)
 target_include_directories(textract_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(textract_lib PUBLIC
-    Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface
+    Qt6::Core Qt6::Gui Qt6::DBus Qt6::Network LayerShellQt::Interface
     PkgConfig::Tesseract PkgConfig::Leptonica PkgConfig::Hunspell
     PkgConfig::ONNXRuntime
     KF6::GuiAddons KF6::Notifications)

@@ -13,6 +13,8 @@
 
 #include "app/extractorcontroller.h"
 #include "capture/kwincapture.h"
+#include "models/fetch.h"
+#include "ocr/onnxpaddleengine.h"
 #include "overlay/selectionoverlay.h"
 
 int main(int argc, char **argv)
@@ -48,9 +50,30 @@ int main(int argc, char **argv)
         QStringLiteral("Stay resident and listen for the global shortcut."));
     parser.addOption(daemonMode);
 
+    QCommandLineOption fetchModelsOption(
+        QStringLiteral("fetch-models"),
+        QStringLiteral("Download the tier-2 PP-OCRv6 models and exit."));
+    parser.addOption(fetchModelsOption);
+
     parser.process(app);
 
     QTextStream err(stderr);
+
+    if (parser.isSet(fetchModelsOption)) {
+        // No compositor, no overlay, no ScreenShot2 authorisation needed. The
+        // QGuiApplication above is already constructed and is left alone rather
+        // than restructured; this branch simply uses none of it.
+        const QString dir = textract::OnnxPaddleEngine::defaultModelDir();
+        QTextStream(stdout) << "Fetching tier-2 models into " << dir << "\n";
+
+        QString error;
+        if (!textract::fetchModels(dir, &error)) {
+            err << "fetch failed: " << error << "\n";
+            return 1;
+        }
+        QTextStream(stdout) << "All four models installed and verified.\n";
+        return 0;
+    }
 
     if (parser.isSet(captureTest)) {
         QString error;

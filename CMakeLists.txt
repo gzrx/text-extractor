@@ -13,7 +13,7 @@ include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 include(FeatureSummary)
 
-find_package(Qt6 6.11 REQUIRED COMPONENTS Core Gui Widgets DBus Test)
+find_package(Qt6 6.11 REQUIRED COMPONENTS Core Gui Widgets DBus Network Test)
 find_package(KF6 6.28 REQUIRED COMPONENTS
     GlobalAccel GuiAddons Config Notifications I18n WindowSystem)
 find_package(LayerShellQt REQUIRED)
