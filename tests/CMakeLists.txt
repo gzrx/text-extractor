@@ -25,6 +25,11 @@ ecm_add_test(test_assemble.cpp
     LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
 )
 
+ecm_add_test(test_analyze.cpp
+    TEST_NAME test_analyze
+    LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
+)
+
 ecm_add_test(test_extraction.cpp
     TEST_NAME test_extraction
     LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui

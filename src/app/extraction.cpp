@@ -3,12 +3,14 @@
 
 #include "app/extraction.h"
 
+#include "analyze/analyze.h"
+
 namespace textract {
 
 Extraction extractText(OcrEngine &engine,
                        const QImage &crop,
                        const QString &langs,
-                       LayoutKind kind,
+                       std::optional<LayoutKind> forcedKind,
                        const PreprocessOptions &options)
 {
     Extraction result;
@@ -27,7 +29,16 @@ Extraction extractText(OcrEngine &engine,
         return result;
     }
 
-    result.text = assemble(result.words, kind);
+    if (forcedKind) {
+        result.kind = *forcedKind;
+        result.layoutConfidence = 1.0f;
+    } else {
+        const LayoutClass layout = classify(result.words, conditioned);
+        result.kind = layout.kind;
+        result.layoutConfidence = layout.confidence;
+    }
+
+    result.text = assemble(result.words, result.kind);
 
     float total = 0.0f;
     for (const Word &word : result.words) {

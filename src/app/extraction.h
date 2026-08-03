@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include <QImage>
@@ -21,6 +22,12 @@ struct Extraction {
     std::vector<Word> words;
     float             meanConfidence{0.0f};
 
+    /// The layout used, whether classified or forced by the caller.
+    LayoutKind kind{LayoutKind::Raw};
+
+    /// classify()'s confidence, or 1.0 when the caller forced the kind.
+    float layoutConfidence{0.0f};
+
     bool isEmpty() const { return words.empty(); }
 };
 
@@ -33,11 +40,16 @@ struct Extraction {
  *
  * `crop` is in original capture pixels and every returned Word::bbox is in
  * those same coordinates, whatever upscale factor was applied internally.
+ *
+ * `forcedKind` overrides classification: the daemon leaves it unset, the
+ * Shift-held override pins it to Raw, and the fixture harness pins it to each
+ * fixture's declared layout so that assembly is scored without classifier
+ * noise. classify() is measured separately, against the same corpus.
  */
 Extraction extractText(OcrEngine &engine,
                        const QImage &crop,
                        const QString &langs,
-                       LayoutKind kind,
+                       std::optional<LayoutKind> forcedKind,
                        const PreprocessOptions &options);
 
 } // namespace textract

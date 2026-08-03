@@ -67,9 +67,10 @@ void ExtractorController::onSelected(const QRect &physicalRect)
     const QImage crop = m_workspace.copy(physicalRect);
     m_workspace = QImage();
 
-    // M4 will classify the layout here instead of assuming Raw.
+    // No forced kind: extractText() classifies. The classifier lives behind
+    // that seam, not here, so the fixture harness scores the same path.
     const Extraction result = extractText(m_engine, crop, m_langs,
-                                          LayoutKind::Raw, m_preprocess);
+                                          std::nullopt, m_preprocess);
 
     if (result.isEmpty() || result.text.isEmpty()) {
         // Clipboard deliberately left untouched.

@@ -103,6 +103,35 @@ private Q_SLOTS:
         QCOMPARE(result.meanConfidence, 0.0f);
     }
 
+    /// The daemon does not know the layout, so extractText() must classify it.
+    /// Wiring this in the controller instead would mean the fixture harness
+    /// scored a path the daemon never runs.
+    void classifiesTheLayoutWhenTheCallerForcesNone()
+    {
+        const QImage crop = renderText(QStringLiteral("Hello world"),
+                                       Qt::white, Qt::black);
+
+        const auto result = textract::extractText(m_engine, crop,
+                                                  QStringLiteral("eng"),
+                                                  std::nullopt, {});
+
+        QCOMPARE(result.kind, textract::LayoutKind::Raw);
+    }
+
+    /// The escape hatch: a forced kind wins outright, so a misclassification is
+    /// always recoverable. classify() must not run at all in this case.
+    void usesTheForcedLayoutInsteadOfClassifying()
+    {
+        const QImage crop = renderText(QStringLiteral("Hello world"),
+                                       Qt::white, Qt::black);
+
+        const auto result = textract::extractText(m_engine, crop,
+                                                  QStringLiteral("eng"),
+                                                  textract::LayoutKind::Code, {});
+
+        QCOMPARE(result.kind, textract::LayoutKind::Code);
+    }
+
     /// The factor actually applied is the clamped one, so an out-of-range
     /// request must not desynchronise the image from the box divisor.
     void survivesAnOutOfRangeUpscaleRequest()
