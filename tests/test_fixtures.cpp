@@ -36,6 +36,17 @@ QString manifestPath()
     return QStringLiteral(TEXTRACT_FIXTURE_DIR "/manifest.json");
 }
 
+QString layoutName(textract::LayoutKind kind)
+{
+    switch (kind) {
+    case textract::LayoutKind::Raw:   return QStringLiteral("raw");
+    case textract::LayoutKind::Code:  return QStringLiteral("code");
+    case textract::LayoutKind::Prose: return QStringLiteral("prose");
+    case textract::LayoutKind::Table: return QStringLiteral("table");
+    }
+    return QStringLiteral("?");
+}
+
 } // namespace
 
 class TestFixtures : public QObject
@@ -92,6 +103,55 @@ private Q_SLOTS:
         QVERIFY2(score >= fixture.minScore,
                  qPrintable(QStringLiteral("%1 scored %2, below its floor of %3")
                                 .arg(fixture.name)
+                                .arg(score, 0, 'f', 4)
+                                .arg(fixture.minScore, 0, 'f', 4)));
+    }
+
+    void classifiesWellEnoughToHitTheSameFloor_data() { matchesExpectedText_data(); }
+
+    /**
+     * The daemon does not know a region's layout, so it runs the unforced
+     * path: classify(), then assemble by whatever came back. matchesExpectedText
+     * pins the declared layout and therefore scores assembly alone — useful,
+     * but it is not what the user gets.
+     *
+     * Held to the same floor as the pinned run. A classifier that picks the
+     * "wrong" kind and still reaches the floor has not hurt anyone; one that
+     * drops below it has, and no amount of agreeing with the manifest would
+     * make up for that.
+     */
+    void classifiesWellEnoughToHitTheSameFloor()
+    {
+        QFETCH(Fixture, fixture);
+
+        if (!langdataAvailable(fixture.langs)) {
+            QSKIP(qPrintable(QStringLiteral("traineddata for \"%1\" not installed")
+                                 .arg(fixture.langs)));
+        }
+
+        QImage crop;
+        QVERIFY2(crop.load(fixture.imagePath),
+                 qPrintable(QStringLiteral("cannot load %1").arg(fixture.imagePath)));
+
+        QFile expectedFile(fixture.expectedPath);
+        QVERIFY2(expectedFile.open(QIODevice::ReadOnly),
+                 qPrintable(QStringLiteral("cannot read %1").arg(fixture.expectedPath)));
+        const QString expected = QString::fromUtf8(expectedFile.readAll());
+
+        const auto result = textract::extractText(m_engine, crop, fixture.langs,
+                                                  std::nullopt, {});
+        const double score = similarity(expected, result.text);
+
+        qInfo("%-28s score %.4f  (floor %.4f, classified %s at %.2f, declared %s)",
+              qPrintable(fixture.name), score, fixture.minScore,
+              qPrintable(layoutName(result.kind)),
+              double(result.layoutConfidence),
+              qPrintable(layoutName(fixture.layout)));
+
+        QVERIFY2(score >= fixture.minScore,
+                 qPrintable(QStringLiteral("%1 classified as %2 scored %3, "
+                                           "below its floor of %4")
+                                .arg(fixture.name, layoutName(result.kind))
                                 .arg(score, 0, 'f', 4)
                                 .arg(fixture.minScore, 0, 'f', 4)));
     }
