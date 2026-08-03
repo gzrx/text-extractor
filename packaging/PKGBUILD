@@ -62,7 +62,11 @@ optdepends=(
   'tesseract-data-msa: Bahasa Melayu for tier 1'
 )
 
-provides=("$_pkgname")
+# Versioned provides so a `depends=('textract>=x')` can be satisfied by this
+# package and so it can stand in for a future non-VCS textract. conflicts stays
+# unversioned on purpose: it conflicts with any version of that package, not
+# just this one.
+provides=("$_pkgname=$pkgver")
 conflicts=("$_pkgname")
 source=("$_pkgname::git+https://github.com/gzrx/text-extractor.git")
 sha256sums=('SKIP')
