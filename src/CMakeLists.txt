@@ -8,6 +8,7 @@ set(TEXTRACT_LIB_SOURCES
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
+    order/order.cpp
     correct/dictionary.cpp
     correct/correct.cpp
     clipboard/clipboard.cpp
