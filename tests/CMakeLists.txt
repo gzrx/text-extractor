@@ -35,6 +35,11 @@ ecm_add_test(test_extraction.cpp
     LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
 )
 
+ecm_add_test(test_correct.cpp
+    TEST_NAME test_correct
+    LINK_LIBRARIES textract_lib Qt6::Test Qt6::Gui
+)
+
 # Only the authorisation message, which is pure. Capturing itself still needs a
 # live compositor and stays untested.
 ecm_add_test(test_captureerror.cpp

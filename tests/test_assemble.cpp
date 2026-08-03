@@ -3,6 +3,7 @@
 
 #include <QTest>
 #include "assemble/assemble.h"
+#include "correct/dictionary.h"
 
 namespace {
 
@@ -258,7 +259,8 @@ private Q_SLOTS:
     }
 
     /// A hyphen at a line end is hyphenation, so the word is put back together
-    /// without it.
+    /// without it. With no dictionary to consult this is the only thing that
+    /// can be done, and it is right far more often than it is wrong.
     void regluesAWordBrokenByAHyphenAtALineEnd()
     {
         std::vector<textract::Word> words;
@@ -267,6 +269,51 @@ private Q_SLOTS:
 
         QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose),
                  QStringLiteral("optical character recognition is useful"));
+    }
+
+    /// The same decision with a dictionary available: "recognition" is a word
+    /// and "recog"/"nition" are not, so the hyphen was hyphenation.
+    void stillRegluesARealHyphenBreakWhenADictionaryIsAvailable()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("optical character recog-"), 0, 1);
+        appendLine(words, QStringLiteral("nition is useful"), 0, 2);
+
+        const textract::Dictionary dictionary;
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose,
+                                    &dictionary),
+                 QStringLiteral("optical character recognition is useful"));
+    }
+
+    /// The standing corpus case. "bleed-through" is genuinely hyphenated and
+    /// merely happened to break at its own hyphen; both halves are words while
+    /// the glued form is not, which is exactly the evidence that the hyphen is
+    /// content rather than typesetting.
+    void keepsTheHyphenOfAGenuinelyHyphenatedWord()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("texture skew and bleed-"), 0, 1);
+        appendLine(words, QStringLiteral("through from the reverse"), 0, 2);
+
+        const textract::Dictionary dictionary;
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose,
+                                    &dictionary),
+                 QStringLiteral("texture skew and bleed-through from the reverse"));
+    }
+
+    /// A word neither form of which is in the dictionary — a proper noun, an
+    /// identifier, a misrecognition — falls back to regluing. The dictionary
+    /// only ever overrides the default when it has positive evidence.
+    void regluesWhenTheDictionaryKnowsNeitherForm()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("built on Layer-"), 0, 1);
+        appendLine(words, QStringLiteral("ShellQt directly"), 0, 2);
+
+        const textract::Dictionary dictionary;
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose,
+                                    &dictionary),
+                 QStringLiteral("built on LayerShellQt directly"));
     }
 
     void keepsParagraphsApart()

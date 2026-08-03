@@ -4,8 +4,38 @@
 #include "app/extraction.h"
 
 #include "analyze/analyze.h"
+#include "correct/correct.h"
 
 namespace textract {
+
+namespace {
+
+/**
+ * The dictionary to post-correct with, or nullptr when there is none.
+ *
+ * Loaded once and shared. Hunspell parses the whole .dic on construction,
+ * which is far too expensive to repeat per extraction on a path the user is
+ * meant to reach for reflexively.
+ *
+ * Correction is enabled only for languages the machine has *both* Tesseract
+ * langdata and a Hunspell dictionary for, which today means English alone. A
+ * Malay or Chinese capture is left exactly as recognised rather than checked
+ * against the wrong language — that would not be correction, it would be
+ * noise.
+ */
+const Dictionary *dictionaryFor(const QString &langs)
+{
+    // Tesseract takes '+'-joined language codes; a mixed capture that includes
+    // English still gets the English check, and the non-English words in it
+    // are protected by the same rule that protects proper nouns.
+    if (!langs.split(QLatin1Char('+')).contains(QLatin1String("eng"))) {
+        return nullptr;
+    }
+    static const Dictionary english(QStringLiteral("en_US"));
+    return english.available() ? &english : nullptr;
+}
+
+} // namespace
 
 Extraction extractText(OcrEngine &engine,
                        const QImage &crop,
@@ -59,7 +89,14 @@ Extraction extractText(OcrEngine &engine,
         }
     }
 
-    result.text = assemble(result.words, result.kind);
+    // Correction runs on words rather than on the assembled string, because
+    // both of its inputs are per word: the engine's confidence, and — for the
+    // hyphen decision inside the Prose branch — which two tokens a line break
+    // fell between. Neither survives assembly.
+    const Dictionary *dictionary = dictionaryFor(langs);
+    correct(result.words, result.kind, dictionary);
+
+    result.text = assemble(result.words, result.kind, dictionary);
 
     float total = 0.0f;
     for (const Word &word : result.words) {

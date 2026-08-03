@@ -78,8 +78,8 @@
             "expected": "pdf-two-column.txt",
             "langs": "eng",
             "layout": "prose",
-            "minScore": 0.98,
-            "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. Scores just under 1.0 because \"bleed-through\" is genuinely hyphenated and the Prose branch reglues it as one word — an M5 dictionary check is what tells the two apart."
+            "minScore": 0.997,
+            "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. M5's dictionary check fixed the \"bleed-through\" reglue, worth 0.0012. The remaining error is not correction's: the paragraph that runs across the column boundary is split, because Tesseract numbers the two halves as different blocks and the Prose branch honours block breaks as paragraph breaks."
         }
     ]
 }

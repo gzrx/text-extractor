@@ -21,6 +21,7 @@ find_package(LayerShellQt REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract)
 pkg_check_modules(Leptonica REQUIRED IMPORTED_TARGET lept)
+pkg_check_modules(Hunspell REQUIRED IMPORTED_TARGET hunspell)
 
 enable_testing()
 add_subdirectory(src)

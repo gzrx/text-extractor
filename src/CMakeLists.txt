@@ -8,6 +8,8 @@ set(TEXTRACT_LIB_SOURCES
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
+    correct/dictionary.cpp
+    correct/correct.cpp
     clipboard/clipboard.cpp
     app/extraction.cpp
     app/extractorcontroller.cpp
@@ -18,7 +20,7 @@ set_target_properties(textract_lib PROPERTIES AUTOMOC ON)
 target_include_directories(textract_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(textract_lib PUBLIC
     Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface
-    PkgConfig::Tesseract PkgConfig::Leptonica
+    PkgConfig::Tesseract PkgConfig::Leptonica PkgConfig::Hunspell
     KF6::GuiAddons KF6::Notifications)
 
 add_executable(textract main.cpp)

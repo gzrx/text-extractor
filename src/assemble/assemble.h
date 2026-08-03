@@ -7,6 +7,7 @@
 
 #include <QString>
 
+#include "correct/dictionary.h"
 #include "ocr/word.h"
 
 namespace textract {
@@ -22,7 +23,17 @@ enum class LayoutKind {
     Table, ///< Cluster columns, emit Markdown or TSV.
 };
 
-/// Converts recognised words into text according to `kind`.
-QString assemble(const std::vector<Word> &words, LayoutKind kind);
+/**
+ * Converts recognised words into text according to `kind`.
+ *
+ * `dictionary` is consulted by the `Prose` branch alone, and only to decide
+ * whether a hyphen at a line end was typesetting or content. That decision has
+ * to be made here rather than in a later pass: once the two halves are glued
+ * the evidence that a hyphen was ever there is gone. Passing nullptr, or a
+ * dictionary with no langdata behind it, keeps the unaided behaviour of always
+ * regluing.
+ */
+QString assemble(const std::vector<Word> &words, LayoutKind kind,
+                 const Dictionary *dictionary = nullptr);
 
 } // namespace textract

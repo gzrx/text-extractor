@@ -35,12 +35,18 @@ Built and tested on Arch (CachyOS), Plasma 6.7.3, KWin 6.7.3, Wayland.
 ```bash
 sudo pacman -S --needed cmake extra-cmake-modules qt6-base layer-shell-qt \
                         tesseract tesseract-data-eng leptonica \
+                        hunspell hunspell-en_us \
                         kglobalaccel kguiaddons kconfig knotifications \
                         ki18n kwindowsystem
 ```
 
 Add language data as needed — `tesseract-data-msa`, `tesseract-data-chi_sim`,
 `tesseract-data-ara`, and so on.
+
+`hunspell` is a build dependency; the dictionaries are not. Prose
+post-correction looks for `en_US.{aff,dic}` at runtime and quietly disables
+itself when it finds none, so a machine without `hunspell-en_us` still
+extracts text — it just does not second-guess it.
 
 X11 is not supported. The capture path is KWin-specific and there is no
 `xdg-desktop-portal` fallback yet.
@@ -111,8 +117,11 @@ overlay over the real desktop — which Wayland makes awkward.
 src/
 ├── capture/     KWin ScreenShot2 D-Bus client
 ├── overlay/     LayerShellQt region selector
+├── preprocess/  polarity, upscale, grayscale
 ├── ocr/         OcrEngine interface + Tesseract implementation
-├── assemble/    words → text
+├── analyze/     what kind of region is this
+├── assemble/    words → text, one branch per kind
+├── correct/     Hunspell-backed prose post-correction
 ├── clipboard/   KSystemClipboard wrapper
 └── app/         daemon, global shortcut, notifications
 ```
@@ -167,10 +176,10 @@ surface type.
 | M0 | ScreenShot2 capture | done |
 | M1 | Layer-shell region selection, DPI-correct | done |
 | M2 | Tesseract → clipboard, raw mode | done |
-| M3 | Preprocessing + fixture test corpus | next |
-| M4 | Layout classification; code/prose/table modes | planned |
-| M5 | Prose post-correction (confusion-set + dictionary) | planned |
-| M6 | Tier 2: PP-OCRv5 via ONNX Runtime, GPU | planned |
+| M3 | Preprocessing + fixture test corpus | done |
+| M4 | Layout classification; code/prose/table modes | done |
+| M5 | Prose post-correction (confusion-set + dictionary) | done |
+| M6 | Tier 2: PP-OCRv5 via ONNX Runtime, GPU | next |
 | M7 | Packaging, config UI | planned |
 
 Preprocessing deliberately will **not** binarise by default. Otsu thresholding is

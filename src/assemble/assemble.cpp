@@ -254,7 +254,47 @@ QString assembleCode(const std::vector<Word> &words)
  * to be laid out at, which is not something the user asked to copy. Block
  * boundaries are kept — those are real paragraph breaks.
  */
-QString assembleProse(const std::vector<Word> &words)
+/**
+ * Whether the hyphen ending `left` belongs to the word rather than to the
+ * line break, given that the next line starts with `right`.
+ *
+ * The default is to reglue, because typesetting hyphenation is much the more
+ * common reason for a line to end in one. The dictionary only ever overrides
+ * that when it has positive evidence both ways: the glued form is not a word
+ * *and* both halves are. "bleed-" + "through" satisfies that; "recog-" +
+ * "nition" fails it on both counts, and an unrecognised identifier like
+ * "Layer-" + "ShellQt" fails it on the second.
+ */
+bool hyphenIsContent(const Dictionary *dictionary, const QString &left,
+                     const QString &right)
+{
+    if (!dictionary || !dictionary->available()) {
+        return false;
+    }
+
+    // Only the tokens either side of the break matter, not the whole line.
+    const QString before = left.section(QLatin1Char(' '), -1);
+    const QString after = right.section(QLatin1Char(' '), 0, 0);
+    if (before.isEmpty() || after.isEmpty()) {
+        return false;
+    }
+
+    const QString stem = before.chopped(1); // drop the trailing hyphen
+    // Trailing sentence punctuation is not part of the word being looked up.
+    QString tail = after;
+    while (!tail.isEmpty() && !tail.back().isLetter()) {
+        tail.chop(1);
+    }
+    if (stem.isEmpty() || tail.isEmpty()) {
+        return false;
+    }
+
+    return !dictionary->contains(stem + tail) && dictionary->contains(stem)
+        && dictionary->contains(tail);
+}
+
+QString assembleProse(const std::vector<Word> &words,
+                      const Dictionary *dictionary)
 {
     QStringList paragraphs;
     QString current;
@@ -276,13 +316,12 @@ QString assembleProse(const std::vector<Word> &words)
         }
 
         if (current.endsWith(QLatin1Char('-'))) {
-            // Hyphenation: put the word back together without the hyphen.
-            //
-            // This also swallows the hyphen of a genuinely hyphenated word
-            // that happened to break at the same place ("bleed-through" ->
-            // "bleedthrough"). Telling the two apart needs a dictionary, which
-            // is M5's job; inventing one here would be guesswork.
-            current.chop(1);
+            // Hyphenation: put the word back together without the hyphen —
+            // unless the dictionary says the hyphen was part of the word and
+            // the break merely landed on it ("bleed-through").
+            if (!hyphenIsContent(dictionary, current, text)) {
+                current.chop(1);
+            }
             current += text;
         } else if (isCjk(current.back()) && isCjk(text.front())) {
             current += text;
@@ -301,13 +340,14 @@ QString assembleProse(const std::vector<Word> &words)
 
 } // namespace
 
-QString assemble(const std::vector<Word> &words, LayoutKind kind)
+QString assemble(const std::vector<Word> &words, LayoutKind kind,
+                 const Dictionary *dictionary)
 {
     switch (kind) {
     case LayoutKind::Code:
         return assembleCode(words);
     case LayoutKind::Prose:
-        return assembleProse(words);
+        return assembleProse(words, dictionary);
     case LayoutKind::Table:
         return assembleTable(words);
     case LayoutKind::Raw:
