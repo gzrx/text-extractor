@@ -8,6 +8,7 @@ set(TEXTRACT_LIB_SOURCES
     ocr/paddlewords.cpp
     ocr/paddledet.cpp
     ocr/paddlerec.cpp
+    ocr/onnxpaddleengine.cpp
     analyze/analyze.cpp
     assemble/assemble.cpp
     assemble/columns.cpp
@@ -20,11 +21,24 @@ set(TEXTRACT_LIB_SOURCES
 )
 
 add_library(textract_lib STATIC ${TEXTRACT_LIB_SOURCES})
+
+# ECM's KDECompilerSettings builds the project with -fno-exceptions, but ONNX
+# Runtime's C++ API is exception-based and will not even compile without them
+# (onnxruntime_cxx_api.h: "exception handling disabled, use -fexceptions").
+#
+# Enabled for this ONE translation unit rather than the whole library. That is
+# sound only because OnnxPaddleEngine catches every Ort::Exception at its own
+# boundary and never lets one propagate into the -fno-exceptions code that
+# calls it -- which is also what keeps a corrupt model from taking the daemon
+# down. If that containment is ever broken, this scoping breaks with it.
+set_source_files_properties(ocr/onnxpaddleengine.cpp
+    PROPERTIES COMPILE_OPTIONS "-fexceptions")
 set_target_properties(textract_lib PROPERTIES AUTOMOC ON)
 target_include_directories(textract_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(textract_lib PUBLIC
     Qt6::Core Qt6::Gui Qt6::DBus LayerShellQt::Interface
     PkgConfig::Tesseract PkgConfig::Leptonica PkgConfig::Hunspell
+    PkgConfig::ONNXRuntime
     KF6::GuiAddons KF6::Notifications)
 
 add_executable(textract main.cpp)
