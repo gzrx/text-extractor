@@ -49,6 +49,19 @@ public:
     /// True once the engine's models are loaded and a call will be fast.
     virtual bool isWarm() const = 0;
 
+    /// True if the engine returns words already in reading order, with line and
+    /// block indices it derived itself.
+    ///
+    /// An engine returning false is also declaring the Segmentation hint
+    /// meaningless to it: both properties come from having a page-segmentation
+    /// stage, and a detector-plus-recogniser has neither. The pipeline then
+    /// owns ordering, via order/.
+    ///
+    /// Pure virtual for the same reason setUpscaleFactor() is — an engine must
+    /// answer this deliberately rather than inherit a default that silently
+    /// mis-orders the user's text.
+    virtual bool providesReadingOrder() const = 0;
+
     /// Tells the engine what factor preprocessing upscaled the image by, so it
     /// can divide reported boxes back into original crop coordinates.
     ///

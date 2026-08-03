@@ -5,6 +5,7 @@
 
 #include "analyze/analyze.h"
 #include "correct/correct.h"
+#include "order/order.h"
 
 namespace textract {
 
@@ -77,16 +78,29 @@ Extraction extractText(OcrEngine &engine,
         result.kind = layout.kind;
         result.layoutConfidence = layout.confidence;
 
-        if (const Segmentation wanted = segmentationFor(result.kind);
-            wanted != firstPass) {
-            std::vector<Word> resegmented = engine.recognize(conditioned, langs,
-                                                             wanted);
-            // Keep the first pass rather than return nothing: a mode that
-            // recognises less is worse than a mode that ordered it oddly.
-            if (!resegmented.empty()) {
-                result.words = std::move(resegmented);
+        // Only an engine with a page-segmentation stage can act on the hint,
+        // so only such an engine can gain anything from a second pass. For a
+        // detector-plus-recogniser the mode is ignored, and re-running would
+        // buy byte-identical words at the price of a whole inference.
+        if (engine.providesReadingOrder()) {
+            if (const Segmentation wanted = segmentationFor(result.kind);
+                wanted != firstPass) {
+                std::vector<Word> resegmented = engine.recognize(conditioned,
+                                                                 langs, wanted);
+                // Keep the first pass rather than return nothing: a mode that
+                // recognises less is worse than a mode that ordered it oddly.
+                if (!resegmented.empty()) {
+                    result.words = std::move(resegmented);
+                }
             }
         }
+    }
+
+    // An engine that does not number its own lines and blocks gets them here.
+    // This runs after classification on purpose: column-versus-table cannot be
+    // decided from geometry alone, and classify() has already decided it.
+    if (!engine.providesReadingOrder()) {
+        orderWords(result.words, result.kind);
     }
 
     // Correction runs on words rather than on the assembled string, because
