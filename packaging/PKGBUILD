@@ -100,6 +100,13 @@ check() {
   # compositor; any test that constructs a Qt GUI application object aborts
   # immediately without a platform plugin that can run headless. Force the
   # offscreen platform so ctest exercises those tests instead of aborting them.
+  #
+  # This is exported for the whole function, which is safe only as long as no
+  # test genuinely needs a compositor: today none references QGuiApplication,
+  # QScreen or devicePixelRatio, and all rendering is raster QImage/QPainter,
+  # so offscreen enables tests rather than weakening them. A future test that
+  # does need a real compositor would degrade here silently rather than
+  # failing. Scope the export to the tests that need it if that day comes.
   export QT_QPA_PLATFORM=offscreen
   ctest --test-dir build --output-on-failure
 }
