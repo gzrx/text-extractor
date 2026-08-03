@@ -1,12 +1,24 @@
 [Unit]
 Description=textract screen text extractor
 PartOf=graphical-session.target
+# WantedBy= below creates a dependency, not an ordering: without After= systemd
+# is free to start this concurrently with the rest of the session. If the
+# Wayland socket or kglobalacceld is not up yet the daemon exits non-zero, and
+# a start limit with no ordering turns that transient login race into a
+# permanent failure -- the burst is spent in seconds, the unit stays failed,
+# and the user's shortcut is silently dead even though the session came up fine
+# moments later. Order after the session target so the race does not happen.
+After=graphical-session.target
 # A configured-but-uninstalled OCR language is fatal at startup by design:
 # there is no working engine to fall back to at that point, unlike in a running
-# daemon. Without a start limit that becomes an endless 2-second restart loop
-# whose queued KNotification is discarded every time, because app.exec() is
-# never reached -- so the user sees nothing at all. Three attempts and the unit
-# stays failed, which is a state systemctl can report truthfully.
+# daemon. The queued KNotification is discarded every time too, because
+# app.exec() is never reached -- so a restart loop shows the user nothing at
+# all. systemd does apply its own defaults here (this host reports
+# DefaultStartLimitIntervalUSec=10s, DefaultStartLimitBurst=5), so the point of
+# stating a limit is determinism, not bounding an otherwise unbounded loop:
+# 60s/3 gives the same give-up behaviour everywhere instead of one that depends
+# on a host-level default. Three attempts and the unit stays failed, which is a
+# state systemctl can report truthfully.
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
@@ -19,7 +31,9 @@ Type=simple
 # three milestones, and the result installed cleanly and captured nothing.
 ExecStart=@TEXTRACT_EXEC@ --daemon
 Restart=on-failure
-RestartSec=2
+# 5s rather than 2s so three attempts span ~15s rather than ~6s, which leaves
+# room for a slow session to finish coming up before the limit trips.
+RestartSec=5
 
 [Install]
 WantedBy=graphical-session.target
