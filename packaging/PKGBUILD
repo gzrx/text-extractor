@@ -16,9 +16,18 @@ license=('GPL-3.0-or-later')
 # stack costs ~6 GiB against 25 MiB and buys nothing at this model size.
 #
 # tesseract-data-eng is invisible to ldd but is not optional either: without a
-# language, warmUp() fails and the daemon exits at startup.
+# language, warmUp() fails and the daemon exits at startup. namcap suggests
+# dropping it because it sees no linkage -- it is a runtime data lookup, not
+# a library, and no linker will ever see it. Do not remove it on namcap's
+# say-so; without it the daemon exits at startup.
+#
+# curl, libarchive, and libglvnd were here from an earlier ldd pass on this
+# machine's Debug build, which links them; the packaged Release build does
+# not, because makepkg's default -Wl,--as-needed drops DT_NEEDED entries
+# nothing actually references. Reconciled against the shipped binary's own
+# DT_NEEDED in a clean chroot, not against a local build -- regenerating this
+# list from `ldd` on a Debug build elsewhere will reintroduce the same three.
 depends=(
-  'curl'
   'gcc-libs'
   'glibc'
   'hunspell'
@@ -28,8 +37,6 @@ depends=(
   'knotifications'
   'layer-shell-qt'
   'leptonica'
-  'libarchive'
-  'libglvnd'
   'onnxruntime-cpu'
   'qt6-base'
   'tesseract'
