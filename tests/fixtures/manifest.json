@@ -34,7 +34,7 @@
             "langs": "msa",
             "layout": "prose",
             "minScore": 0.98,
-            "notes": "Bahasa Melayu prose, dark background. Skipped when msa langdata is absent."
+            "notes": "Bahasa Melayu prose, dark background, expected text unwrapped. Skipped when msa langdata is absent."
         },
         {
             "name": "dark-terminal-cjk",
@@ -42,8 +42,8 @@
             "expected": "dark-terminal-cjk.txt",
             "langs": "chi_sim",
             "layout": "prose",
-            "minScore": 0.5,
-            "notes": "Simplified Chinese with full-width punctuation. Skipped when chi_sim langdata is absent."
+            "minScore": 0.84,
+            "notes": "Simplified Chinese with full-width punctuation. Skipped when chi_sim langdata is absent. Tesseract emits one character per word, so the assembler must not space them apart."
         },
         {
             "name": "small-ui-text",
@@ -61,7 +61,7 @@
             "langs": "eng",
             "layout": "prose",
             "minScore": 0.98,
-            "notes": "Serif prose on white. Expected text preserves the rendered wrapping; the M4 Prose branch will join those lines."
+            "notes": "Serif prose on white. Expected text is unwrapped: the Prose branch joins the rendered line wrapping back into paragraphs."
         },
         {
             "name": "spreadsheet-table",
@@ -79,7 +79,7 @@
             "langs": "eng",
             "layout": "prose",
             "minScore": 0.98,
-            "notes": "Two-column justified PDF. Expected text is in true reading order, left column then right; the hardest M4 case."
+            "notes": "Two-column justified PDF. Expected text is unwrapped ground truth in true reading order, left column then right; the hardest M4 case. Scores just under 1.0 because \"bleed-through\" is genuinely hyphenated and the Prose branch reglues it as one word — an M5 dictionary check is what tells the two apart."
         }
     ]
 }

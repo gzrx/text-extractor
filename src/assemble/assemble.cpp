@@ -3,32 +3,159 @@
 
 #include "assemble/assemble.h"
 
+#include <QStringList>
+
 namespace textract {
 
 namespace {
 
-QString assembleRaw(const std::vector<Word> &words)
+bool isCjk(QChar character);
+
+/**
+ * Appends `text` to `line` with the separator the scripts call for.
+ *
+ * Latin words take a space. A join inside a run of CJK takes none: Tesseract
+ * emits Chinese one character per word, so spacing them the way Latin words
+ * are spaced inserts a character between every glyph that was on screen.
+ */
+void appendWord(QString &line, const QString &text)
 {
-    QString out;
+    if (line.isEmpty() || text.isEmpty()) {
+        line += text;
+        return;
+    }
+    if (!(isCjk(line.back()) && isCjk(text.front()))) {
+        line += QLatin1Char(' ');
+    }
+    line += text;
+}
+
+/// The words of one recognised text line, in the order the engine emitted them.
+struct Line {
+    int                       block{0};
+    std::vector<const Word *> words;
+
+    QString joined() const
+    {
+        QString text;
+        for (const Word *word : words) {
+            appendWord(text, word->text);
+        }
+        return text;
+    }
+};
+
+/// Splits the word stream on the engine's own line and block numbering. Every
+/// branch works from this rather than from raw word order.
+std::vector<Line> groupIntoLines(const std::vector<Word> &words)
+{
+    std::vector<Line> lines;
     int previousLine = -1;
     int previousBlock = -1;
 
     for (const Word &word : words) {
-        if (previousLine >= 0) {
-            if (word.block != previousBlock) {
-                out += QStringLiteral("\n\n");
-            } else if (word.line != previousLine) {
-                out += QLatin1Char('\n');
-            } else {
-                out += QLatin1Char(' ');
-            }
+        if (lines.empty() || word.line != previousLine
+            || word.block != previousBlock) {
+            lines.push_back(Line{word.block, {}});
         }
-        out += word.text;
+        lines.back().words.push_back(&word);
         previousLine = word.line;
         previousBlock = word.block;
     }
 
+    return lines;
+}
+
+/**
+ * True for Han, kana, Hangul and the full-width and CJK punctuation blocks.
+ *
+ * These scripts do not separate words with spaces, so the space that joins two
+ * wrapped Latin lines would be a character that was never on screen.
+ */
+bool isCjk(QChar character)
+{
+    const char32_t code = character.unicode();
+    return (code >= 0x1100 && code <= 0x11FF)   // Hangul Jamo
+        || (code >= 0x2E80 && code <= 0x2EFF)   // CJK radicals
+        || (code >= 0x3000 && code <= 0x303F)   // CJK symbols and punctuation
+        || (code >= 0x3040 && code <= 0x30FF)   // kana
+        || (code >= 0x3130 && code <= 0x318F)   // Hangul compatibility jamo
+        || (code >= 0x3400 && code <= 0x4DBF)   // CJK extension A
+        || (code >= 0x4E00 && code <= 0x9FFF)   // CJK unified ideographs
+        || (code >= 0xAC00 && code <= 0xD7AF)   // Hangul syllables
+        || (code >= 0xF900 && code <= 0xFAFF)   // compatibility ideographs
+        || (code >= 0xFF00 && code <= 0xFFEF);  // half and full width forms
+}
+
+/// Reading order with the engine's own line breaks. The escape hatch: never
+/// the best rendering of anything, never wrong about anything either.
+QString assembleRaw(const std::vector<Word> &words)
+{
+    QString out;
+    int previousBlock = -1;
+
+    for (const Line &line : groupIntoLines(words)) {
+        if (!out.isEmpty()) {
+            out += line.block != previousBlock ? QStringLiteral("\n\n")
+                                               : QStringLiteral("\n");
+        }
+        out += line.joined();
+        previousBlock = line.block;
+    }
+
     return out;
+}
+
+/**
+ * Paragraphs, unwrapped.
+ *
+ * A rendered line break inside a paragraph records the width the text happened
+ * to be laid out at, which is not something the user asked to copy. Block
+ * boundaries are kept — those are real paragraph breaks.
+ */
+QString assembleProse(const std::vector<Word> &words)
+{
+    QStringList paragraphs;
+    QString current;
+    int currentBlock = -1;
+
+    for (const Line &line : groupIntoLines(words)) {
+        const QString text = line.joined();
+        if (text.isEmpty()) {
+            continue;
+        }
+
+        if (current.isEmpty() || line.block != currentBlock) {
+            if (!current.isEmpty()) {
+                paragraphs << current;
+            }
+            current = text;
+            currentBlock = line.block;
+            continue;
+        }
+
+        if (current.endsWith(QLatin1Char('-'))) {
+            // Hyphenation: put the word back together without the hyphen.
+            //
+            // This also swallows the hyphen of a genuinely hyphenated word
+            // that happened to break at the same place ("bleed-through" ->
+            // "bleedthrough"). Telling the two apart needs a dictionary, which
+            // is M5's job; inventing one here would be guesswork.
+            current.chop(1);
+            current += text;
+        } else if (isCjk(current.back()) && isCjk(text.front())) {
+            current += text;
+        } else {
+            current += QLatin1Char(' ');
+            current += text;
+        }
+    }
+
+    if (!current.isEmpty()) {
+        paragraphs << current;
+    }
+
+    return paragraphs.join(QStringLiteral("\n\n"));
 }
 
 } // namespace
@@ -36,11 +163,11 @@ QString assembleRaw(const std::vector<Word> &words)
 QString assemble(const std::vector<Word> &words, LayoutKind kind)
 {
     switch (kind) {
+    case LayoutKind::Prose:
+        return assembleProse(words);
     case LayoutKind::Raw:
     case LayoutKind::Code:
-    case LayoutKind::Prose:
     case LayoutKind::Table:
-        // M2 implements Raw. M4 replaces the other three branches.
         return assembleRaw(words);
     }
     return QString();

@@ -17,6 +17,21 @@ textract::Word makeWord(const QString &text, int x, int line)
     return word;
 }
 
+/// One line of space-separated words starting at `x`, laid out on a 10px
+/// character cell so that x-offsets are readable as character columns.
+void appendLine(std::vector<textract::Word> &words, const QString &text,
+                int x, int line, int block = 1)
+{
+    int cursor = x;
+    for (const QString &token : text.split(QLatin1Char(' '),
+                                           Qt::SkipEmptyParts)) {
+        textract::Word word = makeWord(token, cursor, line);
+        word.block = block;
+        words.push_back(word);
+        cursor += 10 * token.size() + 10; // one blank cell between words
+    }
+}
+
 } // namespace
 
 class TestAssemble : public QObject
@@ -83,6 +98,82 @@ private Q_SLOTS:
 
         QCOMPARE(textract::assemble(words, textract::LayoutKind::Raw),
                  QStringLiteral("the quick\nbrown fox"));
+    }
+
+    /// Tesseract emits Chinese one character per word. Joining those with
+    /// spaces the way Latin words are joined inserts a character between every
+    /// glyph on screen, which is the single largest error on the CJK fixture —
+    /// and it applies to every layout, not just Prose.
+    void joinsCjkCharactersOnOneLineWithoutSpaces()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("这 个 程 序"), 0, 1);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Raw),
+                 QStringLiteral("这个程序"));
+    }
+
+    /// A Latin word beside a Chinese one still needs its space: only a run of
+    /// CJK on both sides of the join means no space belongs there.
+    void keepsTheSpaceBetweenLatinAndCjk()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("使用 OCR 技术"), 0, 1);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Raw),
+                 QStringLiteral("使用 OCR 技术"));
+    }
+
+    // --- Prose -------------------------------------------------------------
+
+    /// Rendered line breaks inside a paragraph are an artefact of the width
+    /// the text happened to be laid out at. Pasting them into a document
+    /// carries someone else's column width along with the words.
+    void joinsWrappedLinesIntoOneParagraph()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("the quick brown"), 0, 1);
+        appendLine(words, QStringLiteral("fox jumps over"), 0, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose),
+                 QStringLiteral("the quick brown fox jumps over"));
+    }
+
+    /// A hyphen at a line end is hyphenation, so the word is put back together
+    /// without it.
+    void regluesAWordBrokenByAHyphenAtALineEnd()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("optical character recog-"), 0, 1);
+        appendLine(words, QStringLiteral("nition is useful"), 0, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose),
+                 QStringLiteral("optical character recognition is useful"));
+    }
+
+    void keepsParagraphsApart()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("first paragraph"), 0, 1, 1);
+        appendLine(words, QStringLiteral("still first"), 0, 2, 1);
+        appendLine(words, QStringLiteral("second paragraph"), 0, 3, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose),
+                 QStringLiteral("first paragraph still first\n\n"
+                                "second paragraph"));
+    }
+
+    /// Chinese, Japanese and Korean text does not separate words with spaces,
+    /// so the space that joins two Latin lines would be an inserted character
+    /// that was never on screen.
+    void joinsCjkLinesWithoutInsertingASpace()
+    {
+        std::vector<textract::Word> words;
+        appendLine(words, QStringLiteral("这个程序可以从屏幕上读取文字。"), 0, 1);
+        appendLine(words, QStringLiteral("用户先用鼠标选择一个区域"), 0, 2);
+
+        QCOMPARE(textract::assemble(words, textract::LayoutKind::Prose),
+                 QStringLiteral("这个程序可以从屏幕上读取文字。用户先用鼠标选择一个区域"));
     }
 };
 

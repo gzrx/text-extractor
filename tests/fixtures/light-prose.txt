@@ -1,15 +1,7 @@
-Optical character recognition has a long history, and the problems it faces on a screen are
-not the problems it faces on a page. A scanned document arrives with paper texture,
-skew, and bleed-through from the reverse side.
+Optical character recognition has a long history, and the problems it faces on a screen are not the problems it faces on a page. A scanned document arrives with paper texture, skew, and bleed-through from the reverse side.
 
-A screen region arrives clean, perfectly axis aligned, and free of noise, but it arrives at
-whatever size the display happened to render it. That difference matters more than it first
-appears.
+A screen region arrives clean, perfectly axis aligned, and free of noise, but it arrives at whatever size the display happened to render it. That difference matters more than it first appears.
 
-Recognition engines trained on scanned pages expect glyphs roughly the size they would
-be at three hundred dots per inch. Text rendered for a screen at ordinary reading size is
-far smaller than that, so the most useful thing a preprocessing stage can do is make the
-image bigger before the engine sees it.
+Recognition engines trained on scanned pages expect glyphs roughly the size they would be at three hundred dots per inch. Text rendered for a screen at ordinary reading size is far smaller than that, so the most useful thing a preprocessing stage can do is make the image bigger before the engine sees it.
 
-Upscaling alone will not invent detail that the renderer never drew. What it does instead
-is give the recognition model the spatial context its convolutions were designed around.
+Upscaling alone will not invent detail that the renderer never drew. What it does instead is give the recognition model the spatial context its convolutions were designed around.

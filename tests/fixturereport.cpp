@@ -9,8 +9,15 @@
  * it and pick the factor with the best mean, then record the answer.
  *
  *   ./build/bin/textract-fixture-report [--binarize] [manifest.json]
+ *
+ * --dump <name> prints one fixture's extracted text beside its expected text
+ * instead of scoring the corpus. A score says a fixture moved; only the text
+ * says why, and every assembly branch was built against this output.
+ *
+ *   ./build/bin/textract-fixture-report --dump dark-terminal-code
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 
@@ -48,6 +55,52 @@ double scoreAt(TesseractEngine &engine, const Fixture &fixture,
     return similarity(expected, result.text);
 }
 
+/// Prints one fixture's extracted text against its expected text.
+int dumpFixture(const std::vector<Fixture> &fixtures, const QString &name,
+                bool binarize)
+{
+    const auto match = std::find_if(fixtures.cbegin(), fixtures.cend(),
+                                    [&name](const Fixture &fixture) {
+                                        return fixture.name == name;
+                                    });
+    if (match == fixtures.cend()) {
+        std::fprintf(stderr, "no fixture named \"%s\"\n", qPrintable(name));
+        return 1;
+    }
+
+    QImage crop;
+    if (!crop.load(match->imagePath)) {
+        std::fprintf(stderr, "cannot load %s\n", qPrintable(match->imagePath));
+        return 1;
+    }
+
+    QFile expectedFile(match->expectedPath);
+    if (!expectedFile.open(QIODevice::ReadOnly)) {
+        std::fprintf(stderr, "cannot read %s\n", qPrintable(match->expectedPath));
+        return 1;
+    }
+    const QString expected = QString::fromUtf8(expectedFile.readAll());
+
+    PreprocessOptions options;
+    options.binarize = binarize;
+
+    TesseractEngine engine;
+    const auto pinned = extractText(engine, crop, match->langs, match->layout,
+                                    options);
+    const auto classified = extractText(engine, crop, match->langs,
+                                        std::nullopt, options);
+
+    std::printf("=== %s: expected ===\n%s\n", qPrintable(match->name),
+                qPrintable(expected));
+    std::printf("\n=== extracted, layout pinned from the manifest "
+                "(score %.4f) ===\n%s\n",
+                similarity(expected, pinned.text), qPrintable(pinned.text));
+    std::printf("\n=== extracted, layout classified (score %.4f) ===\n%s\n",
+                similarity(expected, classified.text),
+                qPrintable(classified.text));
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -56,11 +109,17 @@ int main(int argc, char **argv)
 
     bool binarize = false;
     QString manifest = defaultManifest();
-    for (const QString &argument : app.arguments().mid(1)) {
-        if (argument == QLatin1String("--binarize")) {
+    QString dump;
+
+    const QStringList arguments = app.arguments().mid(1);
+    for (int i = 0; i < arguments.size(); ++i) {
+        if (arguments.at(i) == QLatin1String("--binarize")) {
             binarize = true;
+        } else if (arguments.at(i) == QLatin1String("--dump")
+                   && i + 1 < arguments.size()) {
+            dump = arguments.at(++i);
         } else {
-            manifest = argument;
+            manifest = arguments.at(i);
         }
     }
 
@@ -76,6 +135,10 @@ int main(int argc, char **argv)
                      "Capture some first - see tests/fixtures/README.md\n",
                      qPrintable(manifest));
         return 1;
+    }
+
+    if (!dump.isEmpty()) {
+        return dumpFixture(fixtures, dump, binarize);
     }
 
     std::printf("corpus: %s%s\n\n", qPrintable(manifest),
