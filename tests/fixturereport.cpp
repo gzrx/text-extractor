@@ -15,6 +15,10 @@
  * says why, and every assembly branch was built against this output.
  *
  *   ./build/bin/textract-fixture-report --dump dark-terminal-code
+ *
+ * --tier2 runs every mode through OnnxPaddleEngine instead of Tesseract.
+ *
+ *   ./build/bin/textract-fixture-report --tier2 --dump pdf-two-column
  */
 
 #include <algorithm>
@@ -28,6 +32,8 @@
 
 #include "app/extraction.h"
 #include "fixturecorpus.h"
+#include "ocr/ocrengine.h"
+#include "ocr/onnxpaddleengine.h"
 #include "ocr/tesseractengine.h"
 
 using namespace textract;
@@ -53,7 +59,7 @@ QString layoutName(LayoutKind kind)
 
 /// Returns the score for one fixture at one upscale factor, or -1 if the
 /// fixture could not be run at all.
-double scoreAt(TesseractEngine &engine, const Fixture &fixture,
+double scoreAt(OcrEngine &engine, const Fixture &fixture,
                const QImage &crop, const QString &expected,
                int upscale, bool binarize)
 {
@@ -67,8 +73,8 @@ double scoreAt(TesseractEngine &engine, const Fixture &fixture,
 }
 
 /// Prints one fixture's extracted text against its expected text.
-int dumpFixture(const std::vector<Fixture> &fixtures, const QString &name,
-                bool binarize)
+int dumpFixture(OcrEngine &engine, const std::vector<Fixture> &fixtures,
+                const QString &name, bool binarize)
 {
     const auto match = std::find_if(fixtures.cbegin(), fixtures.cend(),
                                     [&name](const Fixture &fixture) {
@@ -95,7 +101,6 @@ int dumpFixture(const std::vector<Fixture> &fixtures, const QString &name,
     PreprocessOptions options;
     options.binarize = binarize;
 
-    TesseractEngine engine;
     const auto pinned = extractText(engine, crop, match->langs, match->layout,
                                     options);
     const auto classified = extractText(engine, crop, match->langs,
@@ -120,7 +125,8 @@ int dumpFixture(const std::vector<Fixture> &fixtures, const QString &name,
  * and its Raw column is what a correct classification wins, and the gap
  * between Raw and its worst column is what a wrong one costs.
  */
-int layoutMatrix(const std::vector<Fixture> &fixtures, bool binarize)
+int layoutMatrix(OcrEngine &engine, const std::vector<Fixture> &fixtures,
+                 bool binarize)
 {
     const std::pair<LayoutKind, const char *> kinds[] = {
         {LayoutKind::Raw, "raw"},
@@ -138,7 +144,6 @@ int layoutMatrix(const std::vector<Fixture> &fixtures, bool binarize)
     }
     std::printf("   declared\n");
 
-    TesseractEngine engine;
     for (const Fixture &fixture : fixtures) {
         if (!langdataAvailable(fixture.langs)) {
             continue;
@@ -174,6 +179,7 @@ int main(int argc, char **argv)
     QString manifest = defaultManifest();
     QString dump;
     bool matrix = false;
+    bool tier2 = false;
 
     const QStringList arguments = app.arguments().mid(1);
     for (int i = 0; i < arguments.size(); ++i) {
@@ -181,6 +187,8 @@ int main(int argc, char **argv)
             binarize = true;
         } else if (arguments.at(i) == QLatin1String("--matrix")) {
             matrix = true;
+        } else if (arguments.at(i) == QLatin1String("--tier2")) {
+            tier2 = true;
         } else if (arguments.at(i) == QLatin1String("--dump")
                    && i + 1 < arguments.size()) {
             dump = arguments.at(++i);
@@ -203,15 +211,30 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Constructed once, before any fixture: ONNX Runtime session construction
+    // is ~290 ms and repeating it per fixture would dominate the timings.
+    TesseractEngine tesseract;
+    OnnxPaddleEngine paddle(OnnxPaddleEngine::defaultModelDir());
+    if (tier2 && !paddle.available()) {
+        std::fprintf(stderr,
+                     "PP-OCRv6 models not found in %s\n"
+                     "See the M6a plan, Task 7.\n",
+                     qPrintable(OnnxPaddleEngine::defaultModelDir()));
+        return 1;
+    }
+    OcrEngine &engine = tier2 ? static_cast<OcrEngine &>(paddle)
+                              : static_cast<OcrEngine &>(tesseract);
+
     if (!dump.isEmpty()) {
-        return dumpFixture(fixtures, dump, binarize);
+        return dumpFixture(engine, fixtures, dump, binarize);
     }
     if (matrix) {
-        return layoutMatrix(fixtures, binarize);
+        return layoutMatrix(engine, fixtures, binarize);
     }
 
-    std::printf("corpus: %s%s\n\n", qPrintable(manifest),
-                binarize ? "  (binarisation ON)" : "");
+    std::printf("corpus: %s%s%s\n\n", qPrintable(manifest),
+                binarize ? "  (binarisation ON)" : "",
+                tier2 ? "  (tier 2: PP-OCRv6_small)" : "");
     std::printf("%-30s", "fixture");
     for (int factor = kMinUpscale; factor <= kMaxUpscale; ++factor) {
         std::printf("%8dx", factor);
@@ -221,7 +244,6 @@ int main(int argc, char **argv)
     std::map<int, double> totals;
     int scored = 0;
 
-    TesseractEngine engine;
     for (const Fixture &fixture : fixtures) {
         if (!langdataAvailable(fixture.langs)) {
             std::printf("%-30s   skipped: no traineddata for %s\n",

@@ -94,12 +94,23 @@ std::vector<QRect> detectTextLines(const float *map, int width, int height,
         }
 
         // DB shrinks the drawn region during training, so the predicted blob is
-        // smaller than the glyphs. Dilate it back proportionally to its size.
-        const double grow = (options.unclipRatio - 1.0) / 2.0;
-        const int dx = int(double(blob.bounds.width()) * grow);
-        const int dy = int(double(blob.bounds.height()) * grow);
+        // smaller than the glyphs and has to be dilated back.
+        //
+        // The offset is UNIFORM and equals area * ratio / perimeter, which is
+        // what Clipper computes in the reference implementation. It is not a
+        // fraction of the box's own width, and the difference is not cosmetic:
+        // a 240x16 text line grown by 20% of its width gains 48px on each side
+        // and bridges the gutter of a two-column page, which erases the column
+        // boundary entirely. Measured -- pdf-two-column found zero column gaps
+        // and scored 0.3310 with the proportional version. The same box under
+        // this formula grows by 10px.
+        const double area = double(blob.bounds.width()) * double(blob.bounds.height());
+        const double perimeter =
+            2.0 * (double(blob.bounds.width()) + double(blob.bounds.height()));
+        const int offset =
+            perimeter > 0.0 ? int(area * options.unclipRatio / perimeter) : 0;
 
-        QRect box = blob.bounds.adjusted(-dx, -dy, dx, dy);
+        QRect box = blob.bounds.adjusted(-offset, -offset, offset, offset);
         box &= QRect(0, 0, width, height);
         if (!box.isEmpty()) {
             boxes.push_back(box);

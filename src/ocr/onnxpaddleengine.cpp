@@ -201,8 +201,20 @@ void OnnxPaddleEngine::setUpscaleFactor(int factor)
 
 QString OnnxPaddleEngine::defaultModelDir()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-           + QStringLiteral("/models");
+    // TEXTRACT_MODELS mirrors TEXTRACT_FIXTURES, which the corpus gate already
+    // honours, so a checkout can point at models outside the user's data dir.
+    if (const QByteArray override = qgetenv("TEXTRACT_MODELS");
+        !override.isEmpty()) {
+        return QString::fromLocal8Bit(override);
+    }
+
+    // GenericDataLocation + a literal "textract", NOT AppDataLocation.
+    // AppDataLocation is derived from the running executable's name, so the
+    // daemon would look in ~/.local/share/textract while test_fixtures looked
+    // in ~/.local/share/test_fixtures and silently found nothing. The models
+    // belong to the project, not to whichever binary opened them.
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+           + QStringLiteral("/textract/models");
 }
 
 std::vector<Word> OnnxPaddleEngine::recognize(const QImage &image,

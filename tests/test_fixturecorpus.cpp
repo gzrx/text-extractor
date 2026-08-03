@@ -132,6 +132,32 @@ private Q_SLOTS:
         QCOMPARE(fixtures[0].langs, QStringLiteral("eng"));
         QCOMPARE(fixtures[0].layout, textract::LayoutKind::Raw);
         QCOMPARE(fixtures[0].minScore, 0.0);
+        // Absent means "report only", exactly as minScore 0 does. Every
+        // fixture predates tier 2, so this is the on-disk state until the
+        // floors are measured.
+        QCOMPARE(fixtures[0].minScoreTier2, 0.0);
+    }
+
+    /// Tier 2 gets its own floor. The two engines have genuinely different
+    /// strengths -- PP-OCR wins CJK and both tables, Tesseract wins small
+    /// monospace punctuation -- so one floor for both would either hide a
+    /// regression or block a milestone on a known, measured loss.
+    void readsTheTierTwoFloor()
+    {
+        QTemporaryDir dir;
+        const QString manifest = writeFile(dir, QStringLiteral("manifest.json"), R"({
+            "fixtures": [ { "name": "x", "image": "x.png", "expected": "x.txt",
+                            "langs": "eng", "layout": "raw",
+                            "minScore": 0.95, "minScoreTier2": 0.88 } ]
+        })");
+
+        QString error;
+        const auto fixtures = loadManifest(manifest, &error);
+
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(fixtures.size(), size_t(1));
+        QCOMPARE(fixtures[0].minScore, 0.95);
+        QCOMPARE(fixtures[0].minScoreTier2, 0.88);
     }
 
     /// An empty corpus is the normal state until fixtures are captured, and it

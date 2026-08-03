@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 
 #include "assemble/columns.h"
 
@@ -123,40 +124,147 @@ std::vector<Word> wordsOf(const std::vector<Line> &lines)
     return out;
 }
 
-/// Splits `lines` into two columns at a single prose gutter, or returns one
-/// column when there is no such gutter.
+/// At most this share of lines may cross a band for it to still be a gutter.
 ///
-/// Exactly one qualifying gap is required. Two or more is a table, which
-/// classify() would not have called Prose, and zero is ordinary single-column
-/// prose. Both fall through to one column.
+/// Not zero, because real two-column pages put a full-width heading or intro
+/// paragraph above their columns and a footer below, and a gutter defined as
+/// "unoccupied at every height" is erased by a single one of those.
+constexpr double kGutterCrossingShare = 0.2;
+
+/// Each side of a gutter must hold at least this share of the lines.
+///
+/// This is what stops single-column prose finding a false gutter near its
+/// right margin, where the short last line of each paragraph leaves a band
+/// that few lines cross but almost nothing sits to the right of.
+constexpr double kGutterSideShare = 0.25;
+
+/// The x centre of the page's one gutter, or nothing.
+std::optional<int> findGutter(const std::vector<Line> &lines, const QRect &content)
+{
+    if (lines.size() < 4 || content.width() <= 0) {
+        return std::nullopt;
+    }
+
+    std::vector<int> crossings(size_t(content.width()), 0);
+    for (const Line &line : lines) {
+        const int from = std::max(0, line.bounds.left() - content.left());
+        const int to = std::min(content.width() - 1,
+                                line.bounds.right() - content.left());
+        for (int x = from; x <= to; ++x) {
+            ++crossings[size_t(x)];
+        }
+    }
+
+    const int maxCrossings = int(kGutterCrossingShare * double(lines.size()));
+    const int minSide = std::max(1, int(kGutterSideShare * double(lines.size())));
+    const double cell = characterWidth(wordsOf(lines));
+    const int minWidth = std::max(3, int(qRound(0.5 * cell)));
+
+    std::vector<Gap> candidates;
+    int start = -1;
+    for (int x = 0; x < content.width(); ++x) {
+        if (crossings[size_t(x)] <= maxCrossings) {
+            if (start < 0) {
+                start = x;
+            }
+        } else if (start >= 0) {
+            candidates.push_back({content.left() + start, content.left() + x - 1});
+            start = -1;
+        }
+    }
+    if (start >= 0) {
+        candidates.push_back({content.left() + start,
+                              content.left() + content.width() - 1});
+    }
+
+    std::optional<int> found;
+    for (const Gap &gap : candidates) {
+        if (gap.width() < minWidth) {
+            continue;
+        }
+        int left = 0;
+        int right = 0;
+        for (const Line &line : lines) {
+            if (line.bounds.right() < gap.left) {
+                ++left;
+            } else if (line.bounds.left() > gap.right) {
+                ++right;
+            }
+        }
+        if (left < minSide || right < minSide) {
+            continue;
+        }
+        if (found) {
+            return std::nullopt; // Two gutters is a table, not a column break.
+        }
+        found = gap.centre();
+    }
+    return found;
+}
+
+/// Splits `lines` into column runs, in reading order.
+///
+/// Measured on pdf-two-column, a full-width intro paragraph above two columns:
+/// requiring a band unoccupied at EVERY height found no gutter at all and the
+/// fixture scored 0.3083 with its columns interleaved line by line, against
+/// tier 1's 0.9975.
+///
+/// So the gutter is found with a tolerance for the few lines that cross it,
+/// and those crossers then cut the page into regions. Regions come out in y
+/// order and a split region emits left before right, which is reading order:
+/// intro, then the left column, then the right, then the footer.
 std::vector<std::vector<Line>> splitIntoColumns(std::vector<Line> lines)
 {
-    const std::vector<Gap> gaps = columnGaps(wordsOf(lines));
-    if (gaps.size() != 1) {
+    QRect content;
+    for (const Line &line : lines) {
+        content = content.isNull() ? line.bounds : content.united(line.bounds);
+    }
+
+    const std::optional<int> gutter = findGutter(lines, content);
+    if (!gutter) {
         return {std::move(lines)};
     }
 
-    const int split = gaps.front().centre();
-    std::vector<Line> left;
-    std::vector<Line> right;
+    std::sort(lines.begin(), lines.end(),
+              [](const Line &a, const Line &b) { return a.top() < b.top(); });
+
+    std::vector<std::vector<Line>> columns;
+    std::vector<Line> band;
+
+    auto flushBand = [&columns, &band, &gutter]() {
+        if (band.empty()) {
+            return;
+        }
+        std::vector<Line> left;
+        std::vector<Line> right;
+        for (Line &line : band) {
+            (line.bounds.center().x() < *gutter ? left : right)
+                .push_back(std::move(line));
+        }
+        band.clear();
+        if (!left.empty()) {
+            columns.push_back(std::move(left));
+        }
+        if (!right.empty()) {
+            columns.push_back(std::move(right));
+        }
+    };
+
     for (Line &line : lines) {
-        if (line.bounds.center().x() < split) {
-            left.push_back(std::move(line));
+        if (line.bounds.left() < *gutter && line.bounds.right() > *gutter) {
+            // Crosses the gutter, so it belongs to neither column and ends the
+            // band above it.
+            flushBand();
+            std::vector<Line> spanning;
+            spanning.push_back(std::move(line));
+            columns.push_back(std::move(spanning));
         } else {
-            right.push_back(std::move(line));
+            band.push_back(std::move(line));
         }
     }
-    if (left.empty() || right.empty()) {
-        std::vector<Line> all;
-        for (Line &line : left) {
-            all.push_back(std::move(line));
-        }
-        for (Line &line : right) {
-            all.push_back(std::move(line));
-        }
-        return {std::move(all)};
-    }
-    return {std::move(left), std::move(right)};
+    flushBand();
+
+    return columns;
 }
 
 } // namespace

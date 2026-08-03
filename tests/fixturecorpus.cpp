@@ -142,6 +142,8 @@ std::vector<Fixture> loadManifest(const QString &manifestPath, QString *error)
         fixture.langs = entry.value(QLatin1String("langs"))
                             .toString(QStringLiteral("eng"));
         fixture.minScore = entry.value(QLatin1String("minScore")).toDouble(0.0);
+        fixture.minScoreTier2 =
+            entry.value(QLatin1String("minScoreTier2")).toDouble(0.0);
 
         const QString layout = entry.value(QLatin1String("layout"))
                                    .toString(QStringLiteral("raw"));

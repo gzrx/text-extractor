@@ -92,6 +92,28 @@ private Q_SLOTS:
         QVERIFY(boxes.empty());
     }
 
+    /// The dilation is a uniform offset, NOT a fraction of the box's own width.
+    ///
+    /// A long text line grown by a proportion of its width gains tens of pixels
+    /// horizontally and bridges the gutter between two columns of prose, which
+    /// destroys the only geometric signal that a column boundary exists.
+    /// Measured: pdf-two-column found zero column gaps and scored 0.3310 that
+    /// way. Guard the property directly -- horizontal growth must stay
+    /// comparable to vertical growth however wide the line is.
+    void dilatesUniformlyRatherThanByAFractionOfWidth()
+    {
+        const auto map = mapWith(400, 60, {QRect(20, 20, 240, 16)}, 0.9f);
+
+        const auto boxes = textract::detectTextLines(map.data(), 400, 60, {});
+
+        QCOMPARE(boxes.size(), size_t(1));
+        const int grownLeft = 20 - boxes[0].left();
+        const int grownTop = 20 - boxes[0].top();
+        QCOMPARE(grownLeft, grownTop);
+        // 240x16: area 3840, perimeter 512, offset = 3840 * 1.4 / 512 = 10.
+        QCOMPARE(grownLeft, 10);
+    }
+
     void returnsNothingForAnEmptyMap()
     {
         const std::vector<float> map(size_t(100 * 50), 0.0f);

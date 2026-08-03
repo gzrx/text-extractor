@@ -18,6 +18,7 @@
 
 #include "app/extraction.h"
 #include "fixturecorpus.h"
+#include "ocr/onnxpaddleengine.h"
 #include "ocr/tesseractengine.h"
 
 using namespace textract::fixtures;
@@ -156,9 +157,62 @@ private Q_SLOTS:
                                 .arg(fixture.minScore, 0, 'f', 4)));
     }
 
+    void tierTwoHitsItsOwnFloor_data() { matchesExpectedText_data(); }
+
+    /**
+     * Tier 2 against its own per-fixture floor.
+     *
+     * Separate floors because the tiers have genuinely different strengths:
+     * PP-OCR fixes the full-width comma in dark-terminal-cjk and both tables,
+     * and loses to Tesseract on dark-terminal-buildlog's small monospace
+     * punctuation. One shared floor would either hide that or block on it.
+     *
+     * Skips loudly when the models are absent. This is a runtime lookup like
+     * hunspell-en_us, and section 8 of the handoff records how quietly a
+     * missing runtime package can move a score -- so it must skip, never score
+     * differently. No langdata guard: PP-OCRv6_small is one multilingual model.
+     */
+    void tierTwoHitsItsOwnFloor()
+    {
+        QFETCH(Fixture, fixture);
+
+        if (!m_paddle.available()) {
+            QSKIP("PP-OCRv6 models not installed - see the M6a plan, Task 7");
+        }
+
+        QImage crop;
+        QVERIFY2(crop.load(fixture.imagePath),
+                 qPrintable(QStringLiteral("cannot load %1").arg(fixture.imagePath)));
+
+        QFile expectedFile(fixture.expectedPath);
+        QVERIFY2(expectedFile.open(QIODevice::ReadOnly),
+                 qPrintable(QStringLiteral("cannot read %1").arg(fixture.expectedPath)));
+        const QString expected = QString::fromUtf8(expectedFile.readAll());
+
+        const auto result = textract::extractText(m_paddle, crop, fixture.langs,
+                                                  fixture.layout, {});
+        const double score = similarity(expected, result.text);
+
+        qInfo("%-28s tier2 %.4f  (floor %.4f, mean confidence %.2f)",
+              qPrintable(fixture.name), score, fixture.minScoreTier2,
+              double(result.meanConfidence));
+
+        QVERIFY2(score >= fixture.minScoreTier2,
+                 qPrintable(QStringLiteral("%1 scored %2 on tier 2, below its "
+                                           "floor of %3")
+                                .arg(fixture.name)
+                                .arg(score, 0, 'f', 4)
+                                .arg(fixture.minScoreTier2, 0, 'f', 4)));
+    }
+
 private:
     std::vector<Fixture>      m_fixtures;
     textract::TesseractEngine m_engine;
+
+    /// Constructed once: ONNX Runtime session construction is ~290 ms and must
+    /// not be repeated per fixture.
+    textract::OnnxPaddleEngine m_paddle{
+        textract::OnnxPaddleEngine::defaultModelDir()};
 };
 
 QTEST_MAIN(TestFixtures)

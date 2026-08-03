@@ -170,6 +170,37 @@ private Q_SLOTS:
         }
     }
 
+    /// A full-width intro paragraph above two columns.
+    ///
+    /// A gutter is a band unoccupied at EVERY height, so the single spanning
+    /// line erases it for the whole page. Searching the page as a whole finds
+    /// no gutter and interleaves the columns line by line -- measured on
+    /// pdf-two-column, which scored 0.3083 that way against tier 1's 0.9975.
+    /// Reading order here is intro, then all of the left column, then all of
+    /// the right.
+    void readsAFullWidthLineThenTheColumnsBelowIt()
+    {
+        std::vector<textract::Word> words;
+        int id = 0;
+        // Spans both columns and the gutter between them.
+        words.push_back(makeWord(QStringLiteral("intro"), 10, 0, 250, 16, id++));
+        for (int i = 0; i < 4; ++i) {
+            const int y = 30 + i * 20;
+            words.push_back(makeWord(QStringLiteral("L"), 10, y, 60, 16, id++));
+            words.push_back(makeWord(QStringLiteral("R"), 200, y, 60, 16, id++));
+        }
+
+        textract::orderWords(words, textract::LayoutKind::Prose);
+
+        QCOMPARE(words[0].text, QStringLiteral("intro"));
+        for (int i = 1; i <= 4; ++i) {
+            QCOMPARE(words[size_t(i)].text, QStringLiteral("L"));
+        }
+        for (int i = 5; i <= 8; ++i) {
+            QCOMPARE(words[size_t(i)].text, QStringLiteral("R"));
+        }
+    }
+
     /// The same geometry classified as a Table must stay row-major. Splitting
     /// on a table's inter-cell gap is what dropped spreadsheet-table from
     /// 1.0000 to 0.4348 during the M6 probe.

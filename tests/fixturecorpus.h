@@ -18,7 +18,16 @@ struct Fixture {
     QString    expectedPath; ///< absolute, resolved against the manifest
     QString    langs{QStringLiteral("eng")};
     LayoutKind layout{LayoutKind::Raw};
-    double     minScore{0.0}; ///< regression floor; 0 means report only
+    double     minScore{0.0}; ///< tier-1 regression floor; 0 means report only
+
+    /// Tier-2 regression floor; 0 means report only.
+    ///
+    /// Separate from minScore because the two engines have genuinely different
+    /// strengths: PP-OCR fixes the full-width comma in dark-terminal-cjk and
+    /// both tables, and loses to Tesseract on dark-terminal-buildlog's small
+    /// monospace punctuation. One shared floor would either hide that or block
+    /// on a known, measured loss.
+    double     minScoreTier2{0.0};
     QString    notes;
 };
 
