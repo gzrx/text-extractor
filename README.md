@@ -105,6 +105,13 @@ Opens a small dialog for the languages you want recognised and where the second
 engine's models live. Settings are saved to `~/.config/textractrc` and a running
 daemon picks up changes immediately — no restart.
 
+Two settings live in that file but not in the dialog: `Upscale` and
+`Binarize`. Both are readable and writable by hand in
+`~/.config/textractrc`; their defaults are the values measured against
+the project's fixture corpus, and they are left out of the dialog on
+purpose, as an escape hatch for content the corpus doesn't cover rather
+than a knob meant for everyday tuning.
+
 ### Languages
 
 English works out of the box. For anything else, install its data and then pick
