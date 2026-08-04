@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 gzrx
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Only post_upgrade. On a first install there is nothing running to restart,
+# and a message telling the user to restart something they have not started yet
+# is noise that teaches them to ignore the next one.
+post_upgrade() {
+    cat <<'EOF'
+
+>>> Restart textract to finish the upgrade:
+
+      systemctl --user restart textract
+
+    KWin authorises screen capture by matching the running process's executable
+    against the installed desktop entry. This upgrade replaced that binary, so a
+    daemon started beforehand keeps running from a deleted file and every
+    capture will fail with NoAuthorized until it is restarted.
+
+EOF
+}
