@@ -266,8 +266,8 @@ int main(int argc, char **argv)
         });
 
         QTextStream(stdout)
-            << "textract daemon ready; Calculator = tier 1, "
-               "Shift+Calculator = tier 2\n";
+            << "textract daemon ready; Meta+X = tier 1, "
+               "Meta+Shift+X = tier 2 (defaults)\n";
         return app.exec();
     }
 
