@@ -204,10 +204,21 @@ int main(int argc, char **argv)
         QObject::connect(action, &QAction::triggered,
                          controller, &textract::ExtractorController::extract);
 
-        // The Calculator key (XF86Calculator) rather than a modifier combo:
-        // it is a dedicated key on this keyboard and does not collide with the
-        // existing Plasma shortcuts.
-        const QList<QKeySequence> shortcut{QKeySequence(Qt::Key_Calculator)};
+        // Meta+X rather than a dedicated media key. XF86Calculator is absent
+        // from most compact and laptop keyboards, so the previous default left
+        // those users pressing a key they do not have: no capture, no error,
+        // nothing in the journal. Meta+X was checked against a live
+        // kglobalshortcutsrc and collides with no Plasma binding. Meta+T, the
+        // original choice before Calculator, is Plasma's Edit Tiles.
+        //
+        // Tier 1 deliberately carries NO Shift, and that is a correctness
+        // constraint rather than a preference. Shift held through the drag
+        // means "force Raw", and SelectionOverlay accumulates modifiers with
+        // |= across press, move and release -- so a Shift-bearing default would
+        // latch Raw for any user who presses the shortcut and drags straight
+        // away, silently, on every capture.
+        const QList<QKeySequence> shortcut{
+            QKeySequence(Qt::MetaModifier | Qt::Key_X)};
 
         // NoAutoloading on setDefaultShortcut pins what this build considers the
         // default. setShortcut deliberately does NOT pass it, so a binding the user
@@ -228,12 +239,14 @@ int main(int argc, char **argv)
         QObject::connect(tier2Action, &QAction::triggered,
                          controller, &textract::ExtractorController::extractTier2);
 
-        // Shift+Calculator. Shift also means "force Raw" when held through the
-        // drag, but those are different moments -- a shortcut chord versus a
-        // mouse drag -- and the tier-2 path that does open the overlay
-        // deliberately ignores the modifier. See ExtractorController::onSelected().
+        // Meta+Shift+X: tier 1's key plus Shift, keeping the pairing the
+        // Calculator bindings had. Shift also means "force Raw" when held
+        // through a drag, but those are different moments -- a shortcut chord
+        // versus a mouse drag -- and the tier-2 path that does open the overlay
+        // passes std::nullopt unconditionally rather than re-reading the
+        // modifier. See ExtractorController::onSelected().
         const QList<QKeySequence> tier2Shortcut{
-            QKeySequence(Qt::ShiftModifier | Qt::Key_Calculator)};
+            QKeySequence(Qt::MetaModifier | Qt::ShiftModifier | Qt::Key_X)};
 
         // Same NoAutoloading asymmetry as extract_text above, for the same
         // reason; the stored-binding remedy there applies here with
@@ -253,8 +266,8 @@ int main(int argc, char **argv)
         });
 
         QTextStream(stdout)
-            << "textract daemon ready; Calculator = tier 1, "
-               "Shift+Calculator = tier 2\n";
+            << "textract daemon ready; Meta+X = tier 1, "
+               "Meta+Shift+X = tier 2 (defaults)\n";
         return app.exec();
     }
 

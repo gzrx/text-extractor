@@ -68,6 +68,7 @@ optdepends=(
 # just this one.
 provides=("$_pkgname=$pkgver")
 conflicts=("$_pkgname")
+install="$pkgname.install"
 source=("$_pkgname::git+https://github.com/gzrx/text-extractor.git")
 sha256sums=('SKIP')
 
