@@ -1,35 +1,219 @@
-# text-extractor
+# textract
 
-Screen text extraction for KDE Plasma on Wayland. Press a key, drag a region,
-and the text is in your clipboard — the Windows 11 Snipping Tool's text
-extractor, done natively for KWin.
+Grab any text you can see. Press a key, drag a box around it, paste.
 
+No account, no upload, no internet — it all happens on your machine.
+
+## Will this work on my system?
+
+**Yes, if you run KDE Plasma 6 on Wayland.**
+
+Built and tested on Arch (CachyOS) with Plasma 6.7.3 and KWin 6.7.3. Other
+distributions should work but are not tested.
+
+**No, if you run** X11, GNOME or another desktop, Windows, or macOS. Screen
+capture here talks to KWin directly and there is no portal fallback yet.
+
+Not sure? Run this — if it prints `wayland`, you are good:
+
+```bash
+echo $XDG_SESSION_TYPE
 ```
-hotkey → capture workspace → drag a region → OCR → clipboard
+
+## Install
+
+```bash
+git clone https://github.com/gzrx/text-extractor.git
+cd text-extractor/packaging
+makepkg -si
 ```
 
-**Status:** working end to end, with layout-aware assembly, a measured fixture
-corpus, and a second OCR engine on demand. M0–M7a of 8 are done; what remains is
-packaging. See [Roadmap](#roadmap).
+`makepkg` pulls in everything it needs, so there is no dependency list to work
+through by hand.
 
-## Why, given Spectacle already does this
+Then start it, and have it start with you from now on:
 
-Plasma 6.6 added an "Extract Text" button to Spectacle. That covers the simple
-case well. This project exists for the part it doesn't do: treating OCR output
-as *structured* rather than as one flat string.
+```bash
+systemctl --user enable --now textract
+```
 
-Code, prose, tables, and non-English text each want contradictory handling. Code
-must never be autocorrected and needs its indentation preserved; prose wants its
-wrapped lines rejoined; tables need column reconstruction rather than words run
-together. The region is classified and reassembled accordingly, with a heavier
-engine available on a second key when the fast path is not good enough.
+That is it. Press **Meta+X** and drag a box around some text.
 
-Every accuracy claim here is measured against a committed ten-fixture corpus
-rather than asserted, and a change that moves no score does not earn its place.
+<details>
+<summary>If a capture fails right after installing</summary>
 
-## Requirements
+Run `kbuildsycoca6` once. KDE looks up applications through a per-user cache
+that a system-wide install cannot refresh for you. This is usually not needed —
+the cache normally notices on its own.
 
-Built and tested on Arch (CachyOS), Plasma 6.7.3, KWin 6.7.3, Wayland.
+If anything else goes wrong, the daemon logs to the journal rather than to a
+notification:
+
+```bash
+journalctl --user -u textract
+```
+</details>
+
+## First run
+
+Press **Meta+X**. The screen dims, you drag a rectangle, and the text inside it
+is on your clipboard when you let go.
+
+Two things worth knowing on day one:
+
+- **Hold Shift while you drag** to get the text exactly as it appeared, with no
+  reformatting. Useful when the automatic formatting guesses wrong.
+- **Press Meta+Shift+X** to re-read the *same selection* with a slower, more
+  careful engine. No need to drag again. See [Two engines](#two-engines).
+
+### Changing the shortcut
+
+**System Settings → Keyboard → Shortcuts → textract.**
+
+The defaults avoid keys Plasma already uses. If Meta+X clashes with something
+you have set up, change it there — the daemon picks it up immediately, and your
+choice survives updates.
+
+## What it does that plain OCR doesn't
+
+Most text extraction hands you one flat blob of words. This tries to give you
+back what you actually selected.
+
+- **Code stays code.** Indentation is preserved, and nothing is autocorrected.
+- **Paragraphs come back as paragraphs.** Lines that only wrapped because the
+  window was narrow are rejoined, instead of arriving as ragged fragments.
+- **Tables come back as columns.** Grab a table or a spreadsheet region and
+  paste it straight into a spreadsheet.
+- **Two engines, one key apart.** A fast one by default; a slower, more accurate
+  one on a second key when the first gets it wrong.
+- **It runs entirely on your machine.** No account, no upload, no telemetry. The
+  only time it touches the network at all is the optional one-time download of
+  the second engine's models.
+- **The accuracy claims are measured.** Every number in this README comes from a
+  fixed set of test images committed to the repository, not from an impression.
+
+## Configure
+
+```bash
+textract --configure
+```
+
+Opens a small dialog for the languages you want recognised and where the second
+engine's models live. Settings are saved to `~/.config/textractrc` and a running
+daemon picks up changes immediately — no restart.
+
+### Languages
+
+English works out of the box. For anything else, install its data and then pick
+it in the dialog:
+
+```bash
+sudo pacman -S tesseract-data-msa       # Bahasa Melayu
+sudo pacman -S tesseract-data-chi_sim   # Simplified Chinese
+sudo pacman -S tesseract-data-ara       # Arabic
+```
+
+Any `tesseract-data-*` package works. You can enable several at once.
+
+### Two engines
+
+**Meta+Shift+X** re-reads your last selection with PP-OCRv6 — no re-drag — and
+tells you whether the result changed. Download its models once:
+
+```bash
+textract --fetch-models     # about 31 MB, checksum-verified
+```
+
+It is an escalation rather than a replacement, because neither engine wins
+everywhere. The second one is clearly better on Chinese/Japanese/Korean text and
+on source code; the default is still better on small terminal text. The second
+engine also needs no language setting — it carries one fixed character set
+covering 18,708 characters.
+
+## Updating
+
+**Always restart the service after updating**, whichever way you update:
+
+```bash
+systemctl --user restart textract
+```
+
+An update replaces the program file underneath the running daemon, and KDE will
+refuse it screen access until it restarts. The package prints this reminder on
+upgrade; if you miss it, captures fail with an authorisation error until you do.
+
+**If you installed by cloning:**
+
+```bash
+cd text-extractor && git pull
+cd packaging && makepkg -si
+systemctl --user restart textract
+```
+
+**If you use an AUR helper:** this is a `-git` package, and helpers do **not**
+rebuild those during a normal upgrade. You need to ask for it:
+
+```bash
+yay -Syu --devel
+```
+
+Without `--devel` you will sit on the version you first installed indefinitely,
+with no indication anything newer exists.
+
+**Your shortcut will not change.** If you had already bound your own keys — or
+were using the old Calculator-key default — an update leaves them exactly as
+they are. To move to the current defaults, clear the old binding and restart:
+
+```bash
+kwriteconfig6 --file kglobalshortcutsrc --group textract --key extract_text --delete
+kwriteconfig6 --file kglobalshortcutsrc --group textract --key extract_text_tier2 --delete
+systemctl --user restart textract
+```
+
+## Known limitations
+
+Stated plainly so you can decide whether any of them matter to you.
+
+- **One monitor.** The coordinate maths assumes a single display scale. With two
+  monitors at different scaling factors, selections will land in the wrong place.
+- **Wayland on KWin only.** No X11, and no `xdg-desktop-portal` fallback.
+- **Small terminal text is the accuracy floor** for both engines — roughly 7pt
+  monospace is where recognition starts to slip.
+- **Single-column prose keeps its on-screen line breaks.** Paragraph rejoining
+  currently only triggers on multi-column layouts.
+- **The second engine mis-reads some layouts** that the default handles fine:
+  two-column PDFs and some right-aligned spreadsheet columns.
+- **Only Arch is tested.** Nothing should be distribution-specific beyond the
+  packaging, but nobody has checked.
+- **Installing to your home directory needs one extra step** — see
+  [Installing to a home prefix](#installing-to-a-home-prefix).
+
+## Built on
+
+This is a thin layer over other people's hard work.
+
+- **[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)** — the PP-OCRv6
+  models behind the second engine (Apache-2.0). Its accuracy on CJK text and
+  source code is entirely their achievement; this project only supplies the
+  plumbing around it.
+- **[Tesseract](https://github.com/tesseract-ocr/tesseract)** — the default
+  engine, and the reason the tool is useful the moment it is installed.
+- **[Leptonica](http://www.leptonica.org/)** — the image handling underneath it.
+- **[ONNX Runtime](https://onnxruntime.ai/)** — runs the PaddleOCR models
+  without needing a PaddlePaddle installation.
+- **[Hunspell](https://hunspell.github.io/)** — decides whether a hyphen at the
+  end of a line was part of the word or just typesetting.
+- **[KDE](https://kde.org/)** — KWin's screenshot interface, KGlobalAccel,
+  KConfig, KNotifications, the clipboard, and Extra CMake Modules.
+- **[LayerShellQt](https://invent.kde.org/plasma/layer-shell-qt)** — the
+  selection overlay.
+- **[Qt](https://www.qt.io/)** — everything else.
+
+---
+
+*Everything below is for people who want to build, modify, or contribute.*
+
+## Building from source
 
 ```bash
 sudo pacman -S --needed cmake extra-cmake-modules qt6-base layer-shell-qt \
@@ -37,78 +221,31 @@ sudo pacman -S --needed cmake extra-cmake-modules qt6-base layer-shell-qt \
                         hunspell hunspell-en_us onnxruntime \
                         kglobalaccel kguiaddons kconfig knotifications \
                         ki18n kwindowsystem
-```
-
-Add language data as needed — `tesseract-data-msa`, `tesseract-data-chi_sim`,
-`tesseract-data-ara`, and so on. Configure which ones are used with
-`textract --configure`.
-
-`onnxruntime` is the CPU build and is a hard dependency, needed to link. The
-CUDA stack was measured and rejected: it costs roughly 6 GiB against 25 MiB and
-buys nothing at this model size. Tier 2's model files are a separate ~31 MB
-runtime download — see [Two tiers](#two-tiers).
-
-`hunspell` is a build dependency; the dictionaries are not. The dictionary is
-consulted for one decision — whether a hyphen at a line end was typesetting or
-part of the word — and quietly disables itself when it finds no
-`en_US.{aff,dic}`, so a machine without `hunspell-en_us` still extracts text.
-
-X11 is not supported. The capture path is KWin-specific and there is no
-`xdg-desktop-portal` fallback yet.
-
-## Build
-
-```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-## Install
+`onnxruntime` is the CPU build and is required to link. The CUDA stack was
+measured and rejected: roughly 6 GiB against 25 MiB, for no gain at this model
+size.
 
-```bash
-sudo cmake --install build
-```
-
-That installs three files: the binary, a desktop entry, and a systemd user
-unit, all naming the same absolute path. Start it at login with:
-
-```bash
-systemctl --user enable --now textract
-```
-
-If a capture fails with `NoAuthorized` immediately after installing, run
-`kbuildsycoca6` — KDE resolves desktop entries through ksycoca, and it is a
-per-user cache that a system-wide install cannot refresh for you.
-
-Startup failures go to the journal, not to a notification:
-
-```bash
-journalctl --user -u textract
-```
+`hunspell` is needed to build; its dictionaries are not. The dictionary is
+consulted for exactly one decision and disables itself quietly when it finds no
+`en_US.{aff,dic}`, so a machine without `hunspell-en_us` still extracts text.
 
 ### Installing to a home prefix
 
-`cmake --install` puts the unit under `${CMAKE_INSTALL_LIBDIR}/systemd/user`.
-With `-DCMAKE_INSTALL_PREFIX=$HOME/.local` that is `~/.local/lib/systemd/user`,
-which **systemd does not search**. Link it into a directory that is:
+`cmake --install` puts the systemd unit under
+`${CMAKE_INSTALL_LIBDIR}/systemd/user`. With `-DCMAKE_INSTALL_PREFIX=$HOME/.local`
+that is `~/.local/lib/systemd/user`, which **systemd does not search**. Link it
+into a directory that is:
 
 ```bash
 mkdir -p ~/.local/share/systemd/user
 ln -sf ~/.local/lib/systemd/user/textract.service ~/.local/share/systemd/user/
 systemctl --user daemon-reload
 ```
-
-### Arch
-
-```bash
-cd packaging && makepkg -si
-```
-
-`source=` is a `git+https://` URL, so this clones and builds the **pushed
-remote**, not your working tree — local edits you have not committed and pushed
-will not be in the package. That is correct for a VCS package; build with
-`cmake` directly if you want to test uncommitted changes.
 
 ### Running from the build tree
 
@@ -122,69 +259,25 @@ kbuildsycoca6
 
 CMake generates that file with an absolute path to your build output.
 
-## Usage
-
-```bash
-textract --daemon          # resident; listens for the global shortcut
-```
-
-Then press the **Calculator key** (`XF86Calculator`), drag a region, release.
-The recognised text lands on your clipboard, laid out according to what the
-region turned out to be. Hold **Shift** through the drag to force raw output
-when the classifier guesses wrong.
-
-Rebind it in *System Settings → Shortcuts → textract*. The default avoids
-modifier combinations because most are already taken by Plasma.
-
-### Two tiers
-
-**Shift+Calculator** re-runs the *same crop* — no re-capture, no second drag —
-through PP-OCRv6_small on ONNX Runtime, and tells you whether the result
-changed. Install the models first:
-
-```bash
-textract --fetch-models        # ~31 MB, SHA-256 verified, into ~/.local/share/textract/models
-```
-
-It is an escalation rather than a replacement, because neither engine wins
-everywhere. Tier 2 is decisively better on CJK and on code, and Tesseract is
-still better on small monospace terminal text. Tier 2 also needs no language
-setting: it carries one fixed 18708-character set.
-
-Run it at login with `systemctl --user enable --now textract` — see
-[Install](#install).
-
-Two diagnostic modes are also available:
+### Diagnostics
 
 ```bash
 textract --capture-test /tmp/shot.png   # capture only; verifies authorisation
 textract --select-test  /tmp/crop.png   # capture + drag; writes the crop
 ```
 
-## Configuration
+### A note on `makepkg -si`
 
-```bash
-textract --configure
-```
-
-Opens a dialog for the tier-1 OCR languages and the tier-2 model directory.
-Settings live in `~/.config/textractrc` and a running daemon picks up changes
-immediately — no restart.
-
-Upscale factor and binarisation are readable from that file but are not in the
-dialog. Their defaults are measured against the fixture corpus, and changing
-them is an escape hatch for content the corpus does not cover rather than a
-tuning knob.
-
-Shortcuts are set in **System Settings → Shortcuts → textract**. The built-in
-defaults are Calculator for tier 1 and Shift+Calculator for tier 2.
+`source=` is a `git+https://` URL, so it clones and builds the **pushed
+remote**, not your working tree. Uncommitted local edits will not be in the
+package; build with `cmake` directly to test those.
 
 ## How it works
 
 The daemon captures the **entire workspace up front**, then lets you drag a
-rectangle out of an image already in RAM. That means no latency between mouse-up
-and OCR, one D-Bus round trip instead of two, and no need for a live transparent
-overlay over the real desktop — which Wayland makes awkward.
+rectangle out of an image already in RAM. No latency between mouse-up and OCR,
+one D-Bus round trip instead of two, and no live transparent overlay over the
+real desktop — which Wayland makes awkward.
 
 ```
 src/
@@ -218,7 +311,7 @@ tool would copy text that vanishes the moment it exits.
 
 ## Gotchas worth knowing
 
-Five things cost real debugging time here. Documented in case they save someone
+Things that cost real debugging time here, documented in case they save someone
 else the same afternoon.
 
 **KWin screenshot authorisation needs three things, not one.** Missing any one
@@ -228,12 +321,15 @@ gives `NoAuthorized`:
    The lowercase `org.kde.kwin.screenshot` in older forum posts is the legacy v1
    interface and does not authorise v2.
 2. `Exec=` must be an **absolute** path matching the running binary exactly.
-3. The entry must be in **ksycoca** via `kbuildsycoca6`. KDE resolves services
-   through ksycoca; `update-desktop-database` does not touch it.
+3. The entry must be in ksycoca. `update-desktop-database` does not touch it.
+   A package install is normally picked up on its own; a hand-copied entry may
+   need `kbuildsycoca6`.
 
 KWin caches the grant per executable path, so a binary that once worked keeps
 working after you delete its desktop file. Test negative cases with a copy at a
-fresh path.
+fresh path. Relatedly, **replacing the binary invalidates a running daemon's
+grant** — `/proc/<pid>/exe` gains a `(deleted)` suffix and matches nothing.
+Restart, don't debug the desktop file.
 
 **`QScreen::devicePixelRatio()` lies under fractional scaling.** On a 1.25-scaled
 display it reports `2` — the integer buffer scale. The true ratio is on
@@ -252,9 +348,32 @@ surface type.
 
 **`KConfigWatcher` only fires for writes flagged `KConfigBase::Notify`.** A
 plain `writeEntry()` followed by `sync()` updates the file correctly and emits
-no `configChanged()` at all — which is indistinguishable from a watcher that was
-never connected, and sends you looking in the wrong place entirely. When testing
-live reload by hand, `kwriteconfig6` needs `--notify` for the same reason.
+no `configChanged()` at all — indistinguishable from a watcher that was never
+connected. When testing live reload by hand, `kwriteconfig6` needs `--notify`.
+
+**Global shortcuts are persisted by KGlobalAccel.** Once a binding is stored in
+`kglobalshortcutsrc`, changing the `QKeySequence` in code appears to do nothing,
+because `setShortcut` is deliberately called without `NoAutoloading` so a user's
+own choice wins. Clear the stored key to see a code change take effect.
+
+## Contributing
+
+Contributions are welcome, including small ones — a distribution that is not
+Arch, a desktop that is not Plasma, a fixture that breaks something.
+
+Unit-testable code is written test-first. `capture/`, `overlay/`, the config
+dialog and the daemon controller are the exceptions — they need a live
+compositor or live engines, and are covered by `--capture-test`, `--select-test`
+and manual checks.
+
+Accuracy changes are held to the test corpus rather than to judgement. A change
+that moves no score has not earned its place, and lowering a fixture's floor to
+get a green run is how a regression net rots — if a floor looks wrong, read the
+diff instead.
+
+```bash
+ctest --test-dir build --output-on-failure
+```
 
 ## Roadmap
 
@@ -266,9 +385,12 @@ live reload by hand, `kwriteconfig6` needs `--notify` for the same reason.
 | M3 | Preprocessing + fixture test corpus | done |
 | M4 | Layout classification; code/prose/table modes | done |
 | M5 | Prose post-correction (dictionary hyphen check) | done |
-| M6 | Tier 2: PP-OCRv6_small via ONNX Runtime, CPU | done |
+| M6 | Second engine: PP-OCRv6 via ONNX Runtime, CPU | done |
 | M7a | Settings, config dialog, live reload | done |
-| M7b | Packaging, systemd unit | next |
+| M7b | Packaging, systemd unit, install paths | done |
+
+Not yet done, and not currently scheduled: publishing to the AUR, multi-monitor
+support, and an `xdg-desktop-portal` fallback for non-KWin compositors.
 
 Two entries differ from what earlier versions of this file promised, and the
 reasons are worth stating. **M5 shipped half of what it planned**: a
@@ -278,27 +400,10 @@ because it moves a score. **M6 is CPU, not GPU, and PP-OCRv6 rather than v5** �
 the CUDA dependency was measured at ~6 GiB for no gain at this model size, and
 v6 superseded v5 in June 2026.
 
-Preprocessing does **not** binarise by default, and the honest version of that
-claim is narrower than this file used to make it. Otsu thresholding costs 0.0054
+Preprocessing does **not** binarise by default. Otsu thresholding costs 0.0054
 on the corpus at the default 3× upscale, which is why it is off — but it *helps*
 by 0.0022 at 2×. So it is "not helpful at the default", not "harmful on screen
 text in general". Upscaling and polarity detection are where the wins are.
-
-## Contributing
-
-Unit-testable code is written test-first. `capture/`, `overlay/`, the config
-dialog and the daemon controller are the exceptions — they need a live
-compositor or live engines, and are covered by the `--capture-test` and
-`--select-test` modes plus manual checks.
-
-Accuracy changes are held to the corpus rather than to judgement. A change that
-moves no score has not earned its place, and lowering a fixture's floor to get
-a green run is how a regression net rots — if a floor looks wrong, read the
-diff instead.
-
-```bash
-ctest --test-dir build --output-on-failure
-```
 
 ## License
 
