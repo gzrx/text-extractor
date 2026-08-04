@@ -365,7 +365,15 @@ connected. When testing live reload by hand, `kwriteconfig6` needs `--notify`.
 **Global shortcuts are persisted by KGlobalAccel.** Once a binding is stored in
 `kglobalshortcutsrc`, changing the `QKeySequence` in code appears to do nothing,
 because `setShortcut` is deliberately called without `NoAutoloading` so a user's
-own choice wins. Clear the stored key to see a code change take effect.
+own choice wins. Clear the stored key to see a code change take effect — but
+deleting the file entry alone is not always enough while the daemon is still
+registered: `kded6`'s running `kglobalaccel` keeps its own live registry and can
+rewrite the old binding straight back. Stop the daemon first, or unregister the
+binding explicitly:
+
+```bash
+qdbus6 org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel.unregister "textract" "extract_text"
+```
 
 ## Contributing
 
