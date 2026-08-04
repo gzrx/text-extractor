@@ -82,8 +82,9 @@ Most text extraction hands you one flat blob of words. This tries to give you
 back what you actually selected.
 
 - **Code stays code.** Indentation is preserved, and nothing is autocorrected.
-- **Paragraphs come back as paragraphs.** Lines that only wrapped because the
-  window was narrow are rejoined, instead of arriving as ragged fragments.
+- **Multi-column layouts come back as paragraphs.** Lines that only wrapped
+  because a column was narrow are rejoined, instead of arriving as ragged
+  fragments.
 - **Tables come back as columns.** Grab a table or a spreadsheet region and
   paste it straight into a spreadsheet.
 - **Two engines, one key apart.** A fast one by default; a slower, more accurate
