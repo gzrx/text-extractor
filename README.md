@@ -4,6 +4,8 @@ Grab any text you can see. Press a key, drag a box around it, paste.
 
 No account, no upload, no internet — it all happens on your machine.
 
+![Selecting a region of code and pasting it with its indentation intact](assets/demo.webp)
+
 ## Will this work on my system?
 
 **Yes, if you run KDE Plasma 6 on Wayland.**
