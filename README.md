@@ -127,8 +127,9 @@ Any `tesseract-data-*` package works. You can enable several at once.
 
 ### Two engines
 
-**Meta+Shift+X** re-reads your last selection with PP-OCRv6 — no re-drag — and
-tells you whether the result changed. Download its models once:
+**Meta+Shift+X** re-reads your last selection with PP-OCRv6 (the app itself
+calls this "tier 2", in notifications and `--help`) — no re-drag — and tells
+you whether the result changed. Download its models once:
 
 ```bash
 textract --fetch-models     # about 31 MB, checksum-verified
