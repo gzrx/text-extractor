@@ -391,6 +391,7 @@ ctest --test-dir build --output-on-failure
 | M6 | Second engine: PP-OCRv6 via ONNX Runtime, CPU | done |
 | M7a | Settings, config dialog, live reload | done |
 | M7b | Packaging, systemd unit, install paths | done |
+| M8 | README rewrite, new default shortcuts, post-upgrade restart notice | done |
 
 Not yet done, and not currently scheduled: publishing to the AUR, multi-monitor
 support, and an `xdg-desktop-portal` fallback for non-KWin compositors.
