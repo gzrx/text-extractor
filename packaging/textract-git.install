@@ -13,8 +13,8 @@ post_upgrade() {
 
     KWin authorises screen capture by matching the running process's executable
     against the installed desktop entry. This upgrade replaced that binary, so a
-    daemon started beforehand keeps running from a deleted file and every
-    capture will fail with NoAuthorized until it is restarted.
+    daemon started beforehand keeps running from a deleted file and captures
+    can fail with NoAuthorized until it is restarted.
 
 EOF
 }

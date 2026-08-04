@@ -148,9 +148,10 @@ covering 18,708 characters.
 systemctl --user restart textract
 ```
 
-An update replaces the program file underneath the running daemon, and KDE will
+An update replaces the program file underneath the running daemon, and KDE can
 refuse it screen access until it restarts. The package prints this reminder on
-upgrade; if you miss it, captures fail with an authorisation error until you do.
+upgrade; if you miss it, captures can fail with an authorisation error until
+you do.
 
 **If you installed by cloning:**
 
